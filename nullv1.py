@@ -42,22 +42,58 @@ def display_gradient_ascii():
         "                                    "
     ]
     
-    # Red gradient colors
-    colors = [Fore.LIGHTRED_EX, Fore.LIGHTRED_EX, Fore.RED, Fore.RED, Fore.RED, 
-              Fore.RED, Fore.RED, Fore.LIGHTRED_EX, Fore.LIGHTRED_EX, Fore.RED,
-              Fore.RED, Fore.LIGHTRED_EX, Fore.RED, Fore.RED, Fore.RED,
-              Fore.LIGHTRED_EX, Fore.RED, Fore.RED, Fore.RED]
+    # Create actual gradient with ANSI escape codes (256 color mode)
+    gradient_colors = [
+        "\033[38;5;196m",  # Bright Red
+        "\033[38;5;196m",
+        "\033[38;5;160m",  # Red
+        "\033[38;5;160m",
+        "\033[38;5;124m",  # Dark Red
+        "\033[38;5;124m",
+        "\033[38;5;160m",
+        "\033[38;5;160m",
+        "\033[38;5;196m",
+        "\033[38;5;196m",
+        "\033[38;5;160m",
+        "\033[38;5;160m",
+        "\033[38;5;124m",
+        "\033[38;5;124m",
+        "\033[38;5;160m",
+        "\033[38;5;160m",
+        "\033[38;5;196m",
+        "\033[38;5;196m",
+        "\033[38;5;160m"
+    ]
+    
+    reset = "\033[0m"
     
     print("\n" * 2)
-    for i, line in enumerate(ascii_graphic):
-        color = colors[i % len(colors)]
-        print(f"{color}{line}")
-    print("\n")
-    for i, line in enumerate(ascii_text):
-        color = colors[i % len(colors)]
-        print(f"{color}{line}")
     
-    # Keep the original format with [] and >
+    # Display graphic art with gradient
+    for i, line in enumerate(ascii_graphic):
+        if i < len(gradient_colors):
+            color = gradient_colors[i]
+        else:
+            color = "\033[38;5;160m"
+        print(f"{color}{line}{reset}")
+    
+    print("\n")
+    
+    # Display text art with gradient
+    for i, line in enumerate(ascii_text):
+        if i < len(gradient_colors):
+            color = gradient_colors[i]
+        else:
+            color = "\033[38;5;160m"
+        print(f"{color}{line}{reset}")
+    
+    print("\n")
+    
+    # Add "made by @uekv on discord" on top
+    print(f"{Fore.LIGHTRED_EX}made by @uekv on discord{Style.RESET_ALL}")
+    print("\n" + "-" * 50)  # Regular dashes, not in []
+    
+    # Keep the license prompt format with [] and >
     print(f"\n{Fore.RED}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", end="")
 
 def validate_license_key():
@@ -66,6 +102,7 @@ def validate_license_key():
     
     if user_key == valid_key:
         print(f"\n{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}License Validated!{Style.RESET_ALL}")
+        print("\n" + "-" * 50)  # Regular dashes
         return True
     else:
         print(f"\n{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Invalid License Key!{Style.RESET_ALL}")
@@ -84,20 +121,17 @@ def main():
     if not validate_license_key():
         sys.exit(1)
     
-    # If license is valid, show "made by @uekv on discord"
-    print(f"\n{Fore.CYAN}[-]{Style.RESET_ALL} {Fore.CYAN}made by @uekv on discord{Style.RESET_ALL}")
-    
-    # Keep the original menu format
+    # Main menu
     print(f"\n{Fore.RED}[1]{Style.RESET_ALL} {Fore.WHITE}Start{Style.RESET_ALL}")
     print(f"{Fore.RED}[2]{Style.RESET_ALL} {Fore.WHITE}Settings{Style.RESET_ALL}")
     print(f"{Fore.RED}[3]{Style.RESET_ALL} {Fore.WHITE}Exit{Style.RESET_ALL}")
     
+    print("\n" + "-" * 50)  # Regular dashes
+    
     choice = input(f"\n{Fore.RED}[+]{Style.RESET_ALL} {Fore.WHITE}Select > {Style.RESET_ALL}")
     
-    # Original menu logic
     if choice == "1":
         print(f"\n{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Starting...{Style.RESET_ALL}")
-        # Add your original scanning code here
         time.sleep(2)
     elif choice == "3":
         print(f"\n{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Exiting...{Style.RESET_ALL}")
