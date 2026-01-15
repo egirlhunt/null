@@ -9,6 +9,7 @@ import requests
 import base64
 import random
 import string
+import colorsys
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from colorama import init, Fore, Style
@@ -31,22 +32,30 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-# Color themes - Each theme stays within its color family
+# Color themes with HSV-based gradients
 COLOR_THEMES = {
-    "1": {"name": "Red", "colors": [52, 88, 124, 160, 196]},  # Dark red to bright red only
-    "2": {"name": "Blue", "colors": [17, 18, 19, 20, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87]},  # Blues only
-    "3": {"name": "Green", "colors": [22, 28, 34, 40, 46, 47, 48, 49, 50, 51, 82, 83, 84, 85, 86, 118]},  # Greens only
-    "4": {"name": "Purple", "colors": [54, 55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171, 177, 183, 189, 195, 201, 207, 213]},  # Purples to pinks only
-    "5": {"name": "Cyan", "colors": [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 44, 45, 46, 47, 48, 49, 50, 51, 80, 81, 82, 83, 84, 85, 86, 87]},  # Cyans only
-    "6": {"name": "Yellow", "colors": [58, 59, 94, 100, 106, 112, 118, 184, 190, 191, 192, 193, 194, 195, 226, 227, 228, 229]},  # Yellows only
-    "7": {"name": "White", "colors": [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]},  # Grays to white
-    "8": {"name": "Orange", "colors": [130, 131, 166, 167, 172, 173, 178, 179, 202, 203, 208, 209, 214, 215, 220, 221]},  # Oranges only
-    "9": {"name": "Pink", "colors": [125, 126, 161, 162, 197, 198, 199, 200, 201, 205, 206, 210, 211, 215, 216]},  # Pinks only
-    "10": {"name": "Rainbow", "rainbow": True}  # Real rainbow
+    "1": {"name": "Red", "hue": 0.00},
+    "2": {"name": "Orange", "hue": 0.08},
+    "3": {"name": "Yellow", "hue": 0.15},
+    "4": {"name": "Green", "hue": 0.33},
+    "5": {"name": "Cyan", "hue": 0.50},
+    "6": {"name": "Blue", "hue": 0.60},
+    "7": {"name": "Purple", "hue": 0.75},
+    "8": {"name": "Pink", "hue": 0.90},
+    "9": {"name": "White", "grayscale": True},
+    "10": {"name": "Rainbow", "rainbow": True}
 }
 
-# Set default theme to Purple (option 4)
-current_theme = COLOR_THEMES["4"]
+# Set default theme to Purple (option 7)
+current_theme = COLOR_THEMES["7"]
+
+def hsv_to_ansi(h, s=1.0, v=1.0):
+    """Convert HSV to smooth ANSI 256 color"""
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    r = int(r * 5)
+    g = int(g * 5)
+    b = int(b * 5)
+    return 16 + (36 * r) + (6 * g) + b
 
 def get_public_ip():
     """Get public IP address"""
@@ -181,68 +190,42 @@ If you lose it, use the "Generate ID" option in the tool.
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
-        # Real rainbow colors: Red, Orange, Yellow, Green, Blue, Indigo, Violet
-        # Using proper ANSI colors for each
-        rainbow_colors = [
-            196,  # Red
-            202, 208, 214,  # Orange shades
-            220, 226,  # Yellow
-            46, 47, 48, 49, 50,  # Green
-            21, 27, 33, 39, 45, 51,  # Blue
-            55, 56, 57,  # Indigo
-            93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171  # Violet shades
-        ]
-        
-        # Slow animation
-        color_index = int((time.time() * 0.2) % len(rainbow_colors))
-        return f"\033[38;5;{rainbow_colors[color_index]}m"
-    
-    # For regular themes - stay within the color family
-    colors = current_theme["colors"]
-    
-    if intensity == "dark":
-        return f"\033[38;5;{colors[0]}m"
-    elif intensity == "light":
-        return f"\033[38;5;{colors[-1]}m"
-    else:
-        middle_index = len(colors) // 2
-        return f"\033[38;5;{colors[middle_index]}m"
+        hue = (time.time() * 0.08) % 1.0
+        ansi = hsv_to_ansi(hue)
+        return f"\033[38;5;{ansi}m"
 
-def get_gradient_color(position, total_positions, start_color_index=0):
-    """Get smooth gradient color for a specific position - stays in color family"""
+    if current_theme.get("grayscale"):
+        shades = {"dark": 236, "medium": 245, "light": 255}
+        return f"\033[38;5;{shades.get(intensity, 245)}m"
+
+    hue = current_theme["hue"]
+    value = {"dark": 0.55, "medium": 0.75, "light": 1.0}.get(intensity, 0.75)
+
+    ansi = hsv_to_ansi(hue, 0.9, value)
+    return f"\033[38;5;{ansi}m"
+
+def get_gradient_color(position, total_positions):
+    """Get smooth gradient color for a specific position"""
+    if total_positions <= 1:
+        return "\033[38;5;255m"
+
+    t = position / (total_positions - 1)
+
     if current_theme.get("rainbow"):
-        # REAL RAINBOW: Red -> Orange -> Yellow -> Green -> Blue -> Indigo -> Violet
-        # Define segments with proper colors
-        red_orange = list(range(196, 209, 2))  # Red to Orange-red
-        orange_yellow = list(range(208, 227, 2))  # Orange to Yellow
-        green = list(range(46, 87, 4))  # Green
-        blue = list(range(21, 52, 3))  # Blue
-        indigo_violet = list(range(55, 172, 4))  # Indigo to Violet
-        
-        # Combine in correct order
-        rainbow_colors = red_orange + orange_yellow + green + blue + indigo_violet
-        
-        if not rainbow_colors:
-            rainbow_colors = list(range(196, 231))
-        
-        # Calculate position in the rainbow
-        color_index = int((position / total_positions) * len(rainbow_colors))
-        color_index = color_index % len(rainbow_colors)
-        return f"\033[38;5;{rainbow_colors[color_index]}m"
-    else:
-        # For regular themes: gradient through the theme's specific colors only
-        colors = current_theme["colors"]
-        if len(colors) == 0:
-            return f"\033[38;5;{55}m"  # Default purple
-        
-        # Ensure we don't go out of bounds
-        if total_positions <= 0:
-            return f"\033[38;5;{colors[0]}m"
-        
-        # Calculate which color to use based on position
-        exact_index = (position / total_positions) * (len(colors) - 1)
-        color_index = min(int(exact_index), len(colors) - 1)
-        return f"\033[38;5;{colors[color_index]}m"
+        # Real rainbow — smooth HSV sweep
+        hue = t * 0.85  # avoid looping back to red
+        ansi = hsv_to_ansi(hue)
+        return f"\033[38;5;{ansi}m"
+
+    if current_theme.get("grayscale"):
+        gray = int(232 + t * 23)
+        return f"\033[38;5;{gray}m"
+
+    # Smooth brightness gradient inside one color family
+    hue = current_theme["hue"]
+    value = 0.45 + (t * 0.55)  # dark → bright
+    ansi = hsv_to_ansi(hue, 0.9, value)
+    return f"\033[38;5;{ansi}m"
 
 def fetch_license_data():
     """Fetch and parse license data from private GitHub repository"""
@@ -459,27 +442,27 @@ def display_gradient_ascii_header_only():
     # Calculate positions for smooth gradient
     total_ascii_lines = len(ascii_graphic) + len(ascii_text) + 2  # +2 for made by text and separator
     
-    # Display graphic art with smooth gradient - uses selected theme only
+    # Display graphic art with smooth gradient
     for i, line in enumerate(ascii_graphic):
         color = get_gradient_color(i, total_ascii_lines)
         print(f"{color}{line}")
     
     print()  # Single line break
     
-    # Display text art with smooth gradient - uses selected theme only
+    # Display text art with smooth gradient
     for i, line in enumerate(ascii_text):
         color = get_gradient_color(i + len(ascii_graphic), total_ascii_lines)
         print(f"{color}{line}")
     
     print()  # Single line break
     
-    # Add "made by @uekv on discord" with proper gradient - uses selected theme only
+    # Add "made by @uekv on discord" with proper gradient
     made_by_text = "made by @uekv on discord"
     color = get_gradient_color(len(ascii_graphic) + len(ascii_text), total_ascii_lines)
     print(f"{color}{made_by_text}{Style.RESET_ALL}")
     
-    # Gradient separator line - uses selected theme only
-    gradient_line = "-" * 50
+    # Gradient separator line
+    gradient_line = "─" * 50
     sep_color = get_gradient_color(len(ascii_graphic) + len(ascii_text) + 1, total_ascii_lines)
     print(f"{sep_color}{gradient_line}{Style.RESET_ALL}")
 
@@ -505,19 +488,22 @@ def display_color_selection():
             if i + j < len(color_keys):
                 key = color_keys[i + j]
                 theme = COLOR_THEMES[key]
-                # Use the theme's actual color (middle color of the theme)
+                # Use the theme's actual color
                 if theme.get("rainbow"):
                     # Show rainbow colors preview
                     color_code = "\033[38;5;196m"  # Red
                     name = "Rainbow"
+                elif theme.get("grayscale"):
+                    color_code = "\033[38;5;255m"  # White
+                    name = theme['name']
                 else:
-                    mid_color = theme["colors"][len(theme["colors"]) // 2]
+                    mid_color = hsv_to_ansi(theme["hue"], 0.9, 0.75)
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
                 line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<12}"
         print(line.rstrip())
     
-    print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
+    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
@@ -536,7 +522,7 @@ def display_options_grid():
     ]
     
     print("   ".join(options))
-    print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
+    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
