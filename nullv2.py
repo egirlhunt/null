@@ -31,23 +31,23 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-# Color themes
+# Color themes with gradient ranges
 COLOR_THEMES = {
-    "1": {"name": "Red", "primary": Fore.RED, "secondary": Fore.LIGHTRED_EX, "gradient": 160},
-    "2": {"name": "Blue", "primary": Fore.BLUE, "secondary": Fore.LIGHTBLUE_EX, "gradient": 21},
-    "3": {"name": "Green", "primary": Fore.GREEN, "secondary": Fore.LIGHTGREEN_EX, "gradient": 46},
-    "4": {"name": "Purple", "primary": Fore.MAGENTA, "secondary": Fore.LIGHTMAGENTA_EX, "gradient": 127},
-    "5": {"name": "Cyan", "primary": Fore.CYAN, "secondary": Fore.LIGHTCYAN_EX, "gradient": 51},
-    "6": {"name": "Yellow", "primary": Fore.YELLOW, "secondary": Fore.LIGHTYELLOW_EX, "gradient": 226},
-    "7": {"name": "White", "primary": Fore.WHITE, "secondary": Fore.LIGHTWHITE_EX, "gradient": 15},
-    "8": {"name": "Orange", "primary": "\033[38;5;208m", "secondary": "\033[38;5;214m", "gradient": 208},
-    "9": {"name": "Pink", "primary": "\033[38;5;213m", "secondary": "\033[38;5;219m", "gradient": 213},
-    "10": {"name": "Rainbow", "primary": Fore.WHITE, "secondary": Fore.WHITE, "gradient": "rainbow"}
+    "1": {"name": "Red", "dark": 124, "medium": 160, "light": 196, "gradient_range": [124, 160, 196]},
+    "2": {"name": "Blue", "dark": 18, "medium": 33, "light": 69, "gradient_range": [18, 33, 69, 75, 81]},
+    "3": {"name": "Green", "dark": 22, "medium": 46, "light": 82, "gradient_range": [22, 46, 82, 118, 154]},
+    "4": {"name": "Purple", "dark": 54, "medium": 93, "light": 129, "gradient_range": [54, 93, 129, 165, 201]},
+    "5": {"name": "Cyan", "dark": 23, "medium": 44, "light": 51, "gradient_range": [23, 44, 51, 87, 123]},
+    "6": {"name": "Yellow", "dark": 94, "medium": 178, "light": 226, "gradient_range": [94, 136, 178, 220, 226]},
+    "7": {"name": "White", "dark": 7, "medium": 15, "light": 231, "gradient_range": [7, 15, 231]},
+    "8": {"name": "Orange", "dark": 130, "medium": 166, "light": 202, "gradient_range": [130, 166, 202, 208, 214]},
+    "9": {"name": "Pink", "dark": 125, "medium": 162, "light": 219, "gradient_range": [125, 162, 199, 205, 219]},
+    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": list(range(196, 51, -1))}
 }
 
 # Current theme (default to red)
 current_theme = COLOR_THEMES["1"]
-current_gradient_color = 160
+current_gradient_colors = [124, 160, 196]
 
 def evp_bytes_to_key(password, salt, key_len=32, iv_len=16):
     """OpenSSL EVP_BytesToKey compatible key derivation"""
@@ -144,18 +144,55 @@ If you lose it, use the "Generate ID" option in the tool.
     with open("ID.txt", "w") as f:
         f.write(warning_text)
     
-    print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}ID saved to ID.txt{Style.RESET_ALL}")
-    print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Keep this file safe! Never share it!{Style.RESET_ALL}")
+    print(f"{get_color('medium')}[+]{Style.RESET_ALL} {Fore.WHITE}ID saved to ID.txt{Style.RESET_ALL}")
+    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Keep this file safe! Never share it!{Style.RESET_ALL}")
+
+def get_color(intensity="medium"):
+    """Get color based on current theme and intensity"""
+    if current_theme.get("rainbow"):
+        # For rainbow, cycle through colors based on line number
+        return "\033[38;5;{}m".format(random.choice(current_theme["gradient_range"]))
+    
+    if intensity == "dark":
+        return "\033[38;5;{}m".format(current_theme["dark"])
+    elif intensity == "light":
+        return "\033[38;5;{}m".format(current_theme["light"])
+    else:
+        return "\033[38;5;{}m".format(current_theme["medium"])
+
+def get_gradient_color(line_num, total_lines):
+    """Get gradient color for a specific line"""
+    if current_theme.get("rainbow"):
+        # Rainbow: cycle through the full range
+        color_index = line_num % len(current_theme["gradient_range"])
+        return "\033[38;5;{}m".format(current_theme["gradient_range"][color_index])
+    else:
+        # Normal gradient: dark to light
+        gradient_colors = current_theme["gradient_range"]
+        color_index = min(line_num * len(gradient_colors) // total_lines, len(gradient_colors) - 1)
+        return "\033[38;5;{}m".format(gradient_colors[color_index])
+
+def center_text(text, width=80):
+    """Center text within given width"""
+    return text.center(width)
+
+def print_centered(text, color_func=None, width=80):
+    """Print centered text with optional color"""
+    centered = text.center(width)
+    if color_func:
+        print(color_func + centered + Style.RESET_ALL)
+    else:
+        print(centered)
 
 def fetch_license_data():
     """Fetch and parse license data from private GitHub repository"""
     try:
         github_token = get_github_token()
         if not github_token:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Failed to decrypt GitHub token{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Failed to decrypt GitHub token{Style.RESET_ALL}")
             return []
         
-        print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to private database...{Style.RESET_ALL}")
+        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to private database...{Style.RESET_ALL}")
         
         headers = {
             "Authorization": f"Bearer {github_token}",
@@ -168,20 +205,20 @@ def fetch_license_data():
             file_info = response.json()
             content = base64.b64decode(file_info["content"]).decode('utf-8')
             licenses = json.loads(content)
-            print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}Private database connected successfully{Style.RESET_ALL}")
-            print(f"{current_theme['primary']}[•]{Style.RESET_ALL} {Fore.WHITE}Found {len(licenses)} licenses in database{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[+]{Style.RESET_ALL} {Fore.GREEN}Private database connected successfully{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[•]{Style.RESET_ALL} {Fore.WHITE}Found {len(licenses)} licenses in database{Style.RESET_ALL}")
             return licenses
         elif response.status_code == 404:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}File not found{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}File not found{Style.RESET_ALL}")
         elif response.status_code == 401:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Authentication failed{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Authentication failed{Style.RESET_ALL}")
         elif response.status_code == 403:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Access forbidden{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Access forbidden{Style.RESET_ALL}")
         else:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Database connection failed: {response.status_code}{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database connection failed: {response.status_code}{Style.RESET_ALL}")
             
     except Exception as e:
-        print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
+        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
     
     return []
 
@@ -190,7 +227,7 @@ def update_license_data(license_key, new_hwid, new_id=""):
     try:
         github_token = get_github_token()
         if not github_token:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Failed to decrypt GitHub token{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Failed to decrypt GitHub token{Style.RESET_ALL}")
             return False
         
         # Get current file info
@@ -201,7 +238,7 @@ def update_license_data(license_key, new_hwid, new_id=""):
         
         response = requests.get(GITHUB_API_URL, headers=headers, timeout=10)
         if response.status_code != 200:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Failed to access database: {response.status_code}{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Failed to access database: {response.status_code}{Style.RESET_ALL}")
             return False
         
         file_info = response.json()
@@ -221,7 +258,7 @@ def update_license_data(license_key, new_hwid, new_id=""):
                 break
         
         if not updated:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}License not found in database{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}License not found in database{Style.RESET_ALL}")
             return False
         
         # Update file on GitHub
@@ -234,14 +271,14 @@ def update_license_data(license_key, new_hwid, new_id=""):
         update_response = requests.put(GITHUB_API_URL, headers=headers, json=update_data, timeout=10)
         
         if update_response.status_code in [200, 201]:
-            print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}Private database updated successfully{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[+]{Style.RESET_ALL} {Fore.GREEN}Private database updated successfully{Style.RESET_ALL}")
             return True
         else:
-            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Database update failed: {update_response.status_code}{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database update failed: {update_response.status_code}{Style.RESET_ALL}")
             return False
             
     except Exception as e:
-        print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Update error: {e}{Style.RESET_ALL}")
+        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Update error: {e}{Style.RESET_ALL}")
         return False
 
 def send_webhook(license_key, hwid, user_id=""):
@@ -269,7 +306,7 @@ def send_webhook(license_key, hwid, user_id=""):
         }
         response = requests.post(webhook_url, json=payload, timeout=5)
         if response.status_code in [200, 204]:
-            print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}Registration logged{Style.RESET_ALL}")
+            print(f"{get_color('medium')}[+]{Style.RESET_ALL} {Fore.GREEN}Registration logged{Style.RESET_ALL}")
     except Exception:
         pass
 
@@ -315,151 +352,104 @@ def display_gradient_ascii_header_only():
         "                                    "
     ]
     
-    gradient_colors = [
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m", f"\033[38;5;{current_gradient_color}m",
-        f"\033[38;5;{current_gradient_color}m"
-    ]
-    
-    if current_gradient_color == "rainbow":
-        gradient_colors = [
-            "\033[38;5;196m", "\033[38;5;202m", "\033[38;5;208m", "\033[38;5;214m",
-            "\033[38;5;220m", "\033[38;5;226m", "\033[38;5;190m", "\033[38;5;154m",
-            "\033[38;5;118m", "\033[38;5;82m", "\033[38;5;46m", "\033[38;5;47m",
-            "\033[38;5;48m", "\033[38;5;49m", "\033[38;5;50m", "\033[38;5;51m",
-            "\033[38;5;45m", "\033[38;5;39m", "\033[38;5;33m"
-        ]
-    
-    reset = "\033[0m"
-    gradient_line = f"\033[38;5;{current_gradient_color}m" + "-" * 50 + reset
-    
     # Display graphic art with gradient
     for i, line in enumerate(ascii_graphic):
-        if current_gradient_color == "rainbow":
-            color = gradient_colors[i % len(gradient_colors)]
-        else:
-            color = gradient_colors[i] if i < len(gradient_colors) else f"\033[38;5;{current_gradient_color}m"
-        print(f"{color}{line}{reset}")
+        color = get_gradient_color(i, len(ascii_graphic))
+        print_centered(line, lambda: color)
     
     print("\n")
     
     # Display text art with gradient
     for i, line in enumerate(ascii_text):
-        if current_gradient_color == "rainbow":
-            color = gradient_colors[(i + 5) % len(gradient_colors)]
-        else:
-            color = gradient_colors[i] if i < len(gradient_colors) else f"\033[38;5;{current_gradient_color}m"
-        print(f"{color}{line}{reset}")
+        color = get_gradient_color(i + len(ascii_graphic), len(ascii_graphic) + len(ascii_text))
+        print_centered(line, lambda: color)
     
     print("\n")
     
-    # Add "made by @uekv on discord"
-    print(f"{current_theme['secondary']}made by @uekv on discord{Style.RESET_ALL}")
-    print(gradient_line)
+    # Add "made by @uekv on discord" with gradient
+    made_by_text = "made by @uekv on discord"
+    color = get_gradient_color(len(ascii_graphic) + len(ascii_text), len(ascii_graphic) + len(ascii_text) + 2)
+    print_centered(made_by_text, lambda: color)
+    
+    # Gradient line
+    gradient_line = "─" * 50
+    print_centered(gradient_line, lambda: get_color("medium"))
 
 def display_gradient_ascii():
     """Full display with license prompt"""
     display_gradient_ascii_header_only()
-    print(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", end="")
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", width=80)
 
 def display_color_selection():
     """Display color selection menu"""
     clear_screen_preserve_header()
     
-    print(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}", width=80)
+    print_centered(f"{get_color('medium')}══════════════════════════════{Style.RESET_ALL}", width=80)
+    print()
     
-    box_width = 25
-    horizontal_line = "─" * (box_width * 2 + 8)
+    # Display colors in centered format
+    colors_per_row = 2
+    color_keys = list(COLOR_THEMES.keys())
     
-    # Print top border
-    print(f"{current_theme['primary']}┌{horizontal_line}┐{Style.RESET_ALL}")
-    
-    # Display colors in 2 columns
-    for i in range(0, 10, 2):
-        line = f"{current_theme['primary']}│{Style.RESET_ALL}"
+    for i in range(0, len(color_keys), colors_per_row):
+        row_text = ""
+        for j in range(colors_per_row):
+            if i + j < len(color_keys):
+                key = color_keys[i + j]
+                theme = COLOR_THEMES[key]
+                color_code = f"\033[38;5;{theme['medium']}m"
+                if theme.get("rainbow"):
+                    color_code = "\033[38;5;196m"  # Red for rainbow label
+                option = f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {theme['name']}"
+                row_text += option.ljust(30)
         
-        # Column 1
-        key1 = str(i+1)
-        theme1 = COLOR_THEMES[key1]
-        padding1 = (box_width - len(f"[{key1}] {theme1['name']}")) // 2
-        left_pad1 = " " * padding1
-        right_pad1 = " " * (box_width - len(f"[{key1}] {theme1['name']}") - padding1)
-        colored_option1 = f"{theme1['primary']}[{key1}]{Style.RESET_ALL}{Fore.WHITE} {theme1['name']}{Style.RESET_ALL}"
-        line += f" {left_pad1}{colored_option1}{right_pad1} {current_theme['primary']}│{Style.RESET_ALL}"
-        
-        # Column 2
-        if i+1 < 10:
-            key2 = str(i+2)
-            theme2 = COLOR_THEMES[key2]
-            padding2 = (box_width - len(f"[{key2}] {theme2['name']}")) // 2
-            left_pad2 = " " * padding2
-            right_pad2 = " " * (box_width - len(f"[{key2}] {theme2['name']}") - padding2)
-            colored_option2 = f"{theme2['primary']}[{key2}]{Style.RESET_ALL}{Fore.WHITE} {theme2['name']}{Style.RESET_ALL}"
-            line += f" {left_pad2}{colored_option2}{right_pad2} {current_theme['primary']}│{Style.RESET_ALL}"
-        
-        print(line)
-        
-        if i < 8:
-            print(f"{current_theme['primary']}├{horizontal_line}┤{Style.RESET_ALL}")
+        print_centered(row_text, width=80)
+        if i + colors_per_row < len(color_keys):
+            print_centered(f"{get_color('dark')}─{Style.RESET_ALL}", width=80)
     
-    # Print bottom border
-    print(f"{current_theme['primary']}└{horizontal_line}┘{Style.RESET_ALL}")
+    print()
+    print_centered(f"{get_color('medium')}────────────────────────────────────{Style.RESET_ALL}", width=80)
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Color > {Style.RESET_ALL}", width=80)
     
-    print("\n" + f"\033[38;5;{current_gradient_color}m" + "-" * 50 + "\033[0m")
-    
-    return input(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}Select Color > {Style.RESET_ALL}")
+    return input(" " * 35)  # Centered input
 
 def display_options_grid():
-    """Display options in a box-like grid format"""
+    """Display options in centered format without boxes"""
     clear_screen_preserve_header()
     
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}", width=80)
+    print_centered(f"{get_color('medium')}══════════════════════════════{Style.RESET_ALL}", width=80)
+    print()
+    
     options = [
-        [f"{current_theme['primary']}[1]{Style.RESET_ALL} Change Color", f"{current_theme['primary']}[2]{Style.RESET_ALL} Generate ID", f"{current_theme['primary']}[3]{Style.RESET_ALL} Exit"]
+        f"{get_color('light')}[1]{Style.RESET_ALL} Change Color",
+        f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
+        f"{get_color('light')}[3]{Style.RESET_ALL} Exit"
     ]
     
-    print(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}\n")
+    # Display each option centered with gradient
+    for i, option in enumerate(options):
+        color = get_gradient_color(i, len(options))
+        print_centered(option, lambda c=color: c)
+        if i < len(options) - 1:
+            print_centered(f"{get_color('dark')}─{Style.RESET_ALL}", width=80)
     
-    # Calculate box width
-    box_width = 30
-    horizontal_line = "─" * (box_width * 3 + 8)
+    print()
+    print_centered(f"{get_color('medium')}────────────────────────────────────{Style.RESET_ALL}", width=80)
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}", width=80)
     
-    # Print top border
-    print(f"{current_theme['primary']}┌{horizontal_line}┐{Style.RESET_ALL}")
-    
-    # Print options
-    for row in options:
-        line = f"{current_theme['primary']}│{Style.RESET_ALL}"
-        for option in row:
-            # Center each option in its box
-            padding = (box_width - len(option) + 15) // 2  # Adjust for ANSI codes
-            left_pad = " " * padding
-            right_pad = " " * (box_width - len(option) + 15 - padding)
-            line += f" {left_pad}{option}{right_pad} {current_theme['primary']}│{Style.RESET_ALL}"
-        print(line)
-    
-    # Print bottom border
-    print(f"{current_theme['primary']}└{horizontal_line}┘{Style.RESET_ALL}")
-    
-    print("\n" + f"\033[38;5;{current_gradient_color}m" + "-" * 50 + "\033[0m")
-    
-    return input(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}Select > {Style.RESET_ALL}")
+    return input(" " * 35)  # Centered input
 
 def validate_license_key():
     """Validate license key against private GitHub database"""
     user_key = input().strip()
     
     if not user_key:
-        print(f"\n{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}")
+        print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}", width=80)
         return False, ""
     
-    print(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}")
+    print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}", width=80)
     time.sleep(1)
     
     try:
@@ -467,7 +457,7 @@ def validate_license_key():
         licenses = fetch_license_data()
         
         if not licenses:
-            print(f"{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}", width=80)
             return False, ""
         
         # Find the license key
@@ -483,63 +473,63 @@ def validate_license_key():
                 
                 if not stored_hwid:
                     # First time activation
-                    print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
+                    print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}", width=80)
                     
                     # Generate ID if not exists
                     if not user_id:
                         user_id = generate_random_id()
-                        print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}")
+                        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}", width=80)
                         save_id_to_file(user_id, user_key)
                     
                     # Send webhook notification
                     send_webhook(user_key, current_hwid, user_id)
                     
                     # Update GitHub database with HWID and ID
-                    print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database...{Style.RESET_ALL}")
+                    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database...{Style.RESET_ALL}", width=80)
                     if update_license_data(user_key, current_hwid, user_id):
-                        print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
+                        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}", width=80)
                         time.sleep(2)
                         return True, user_key
                     else:
-                        print(f"{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}Database update failed{Style.RESET_ALL}")
+                        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database update failed{Style.RESET_ALL}", width=80)
                         return False, ""
                 else:
                     # Check HWID match
                     if stored_hwid == current_hwid:
-                        print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
+                        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}", width=80)
                         if user_id and not os.path.exists("ID.txt"):
                             save_id_to_file(user_id, user_key)
                         time.sleep(1)
                         return True, user_key
                     else:
-                        print(f"{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                        print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Your HWID: {current_hwid[:16]}...{Style.RESET_ALL}")
-                        print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Database HWID: {stored_hwid[:16]}...{Style.RESET_ALL}")
-                        print(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv{Style.RESET_ALL}")
+                        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}", width=80)
+                        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Your HWID: {current_hwid[:16]}...{Style.RESET_ALL}", width=80)
+                        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database HWID: {stored_hwid[:16]}...{Style.RESET_ALL}", width=80)
+                        print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv{Style.RESET_ALL}", width=80)
                         
                         for i in range(10, 0, -1):
-                            print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
+                            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}", width=80)
                             time.sleep(1)
                         return False, ""
         
         if not license_found:
-            print(f"\n{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
-            print(f"{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}")
+            print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}", width=80)
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}", width=80)
             
             for i in range(3, 0, -1):
-                print(f"{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
+                print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}", width=80)
                 time.sleep(1)
             
             return False, ""
             
     except Exception as e:
-        print(f"{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
+        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}", width=80)
         return False, ""
     
     return False, ""
 
 def main():
-    global current_theme, current_gradient_color
+    global current_theme, current_gradient_colors
     
     os.system('cls' if os.name == 'nt' else 'clear')
     display_gradient_ascii()
@@ -560,18 +550,16 @@ def main():
             color_choice = display_color_selection()
             if color_choice in COLOR_THEMES:
                 current_theme = COLOR_THEMES[color_choice]
-                if color_choice == "10":  # Rainbow
-                    current_gradient_color = "rainbow"
-                else:
-                    current_gradient_color = current_theme["gradient"]
-                print(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}")
+                current_gradient_colors = current_theme["gradient_range"]
+                print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}", width=80)
             else:
-                print(f"\n{current_theme['primary']}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}")
-            input(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+                print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}", width=80)
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", width=80)
+            input(" " * 35)
             
         elif choice == "2":
             # Generate ID
-            print(f"\n{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}")
+            print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}", width=80)
             
             # Check if license is still valid
             licenses = fetch_license_data()
@@ -588,21 +576,23 @@ def main():
                 update_license_data(license_key, get_hwid(), user_id)
             
             save_id_to_file(user_id, license_key)
-            print(f"{current_theme['primary']}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}")
-            input(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+            print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}", width=80)
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", width=80)
+            input(" " * 35)
             
         elif choice == "3" or choice == "exit":
-            print(f"\n{Fore.WHITE}[{current_theme['primary']}-{Fore.WHITE}]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}")
+            print_centered(f"\n{Fore.WHITE}[{get_color('light')}-{Fore.WHITE}]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}", width=80)
             time.sleep(1)
             sys.exit(0)
             
         else:
-            print(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}")
-            input(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}", width=80)
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", width=80)
+            input(" " * 35)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{current_theme['primary']}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
+        print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}", width=80)
         sys.exit(0)
