@@ -33,10 +33,10 @@ GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/content
 
 # Color themes with clean, vibrant gradients
 COLOR_THEMES = {
-    "1": {"name": "Red", "gradient_range": [196, 197, 198, 199, 160, 161, 124, 125, 88, 52]},  # Dark red to bright red
-    "2": {"name": "Blue", "gradient_range": [20, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, 93, 99, 105, 111, 117]},  # Dark blue to light blue
+    "1": {"name": "Red", "gradient_range": [196, 160, 124, 88, 52]},  # Dark red to bright red
+    "2": {"name": "Blue", "gradient_range": [20, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, 93, 99, 105, 111, 117]},  # Dark blue to light blue
     "3": {"name": "Green", "gradient_range": [22, 28, 34, 40, 46, 47, 48, 49, 50, 51, 82, 83, 84, 85, 86, 118, 119, 120]},  # Dark green to light green
-    "4": {"name": "Purple", "gradient_range": [54, 55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171]},  # Default theme - Dark purple to light purple
+    "4": {"name": "Purple", "gradient_range": [54, 55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171, 177, 183, 189, 195, 201, 207, 213]},  # Purple to pink gradient
     "5": {"name": "Cyan", "gradient_range": [23, 29, 35, 41, 44, 45, 46, 47, 48, 49, 50, 51, 87, 86, 85, 84, 83, 82]},  # Dark cyan to light cyan
     "6": {"name": "Yellow", "gradient_range": [58, 94, 100, 106, 112, 118, 184, 190, 191, 192, 193, 194, 195, 196, 226, 227, 228, 229]},  # Dark yellow to bright yellow
     "7": {"name": "White", "gradient_range": [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]},
@@ -182,13 +182,12 @@ def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
         # Proper rainbow sequence: red, orange, yellow, green, blue, indigo, violet
-        # Using vibrant ANSI colors
         rainbow_colors = [196, 202, 208, 214, 220, 226,  # Reds to yellows
                          190, 154, 118, 82, 46,  # Greens
                          21, 27, 33, 39, 45, 51,  # Blues
-                         55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171]  # Purples
+                         55, 56, 57, 93, 99, 105, 111, 117, 123, 129]  # Purples
         
-        color_index = int(time.time() * 10) % len(rainbow_colors)
+        color_index = int(time.time() * 5) % len(rainbow_colors)
         return f"\033[38;5;{rainbow_colors[color_index]}m"
     
     # For regular themes
@@ -202,36 +201,36 @@ def get_color(intensity="medium"):
         middle_index = len(gradient_range) // 2
         return f"\033[38;5;{gradient_range[middle_index]}m"
 
-def get_gradient_color(position, total_positions):
+def get_gradient_color(position, total_positions, start_pos=0):
     """Get smooth gradient color for a specific position"""
     if current_theme.get("rainbow"):
-        # Proper smooth rainbow with vibrant colors
-        # Create segments for each rainbow color
-        rainbow_segments = [
-            ([196, 202, 208, 214, 220, 226], 0.15),  # Red to Yellow
-            ([190, 154, 118, 82, 46], 0.25),  # Greens
-            ([21, 27, 33, 39, 45, 51], 0.25),  # Blues
-            ([55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171], 0.35)  # Purples
-        ]
+        # Proper smooth rainbow
+        rainbow_colors = []
+        # Red to Orange
+        rainbow_colors.extend(list(range(196, 208)))
+        # Orange to Yellow
+        rainbow_colors.extend(list(range(208, 227)))
+        # Yellow to Green
+        rainbow_colors.extend(list(range(226, 45, -3)))
+        # Green to Blue
+        rainbow_colors.extend(list(range(46, 87)))
+        # Blue to Purple
+        rainbow_colors.extend(list(range(21, 130, 2)))
         
-        # Calculate which segment we're in
-        segment_position = position / total_positions
-        cumulative = 0
+        if not rainbow_colors:
+            rainbow_colors = list(range(196, 231))
         
-        for segment_colors, segment_weight in rainbow_segments:
-            if segment_position < cumulative + segment_weight:
-                # Within this segment
-                segment_relative = (segment_position - cumulative) / segment_weight
-                color_index = int(segment_relative * (len(segment_colors) - 1))
-                return f"\033[38;5;{segment_colors[color_index]}m"
-            cumulative += segment_weight
-        
-        # Fallback
-        return f"\033[38;5;{196}m"
+        color_index = int((position / total_positions) * len(rainbow_colors)) % len(rainbow_colors)
+        return f"\033[38;5;{rainbow_colors[color_index]}m"
     else:
         # Smooth gradient through the theme's range
         gradient_range = current_theme["gradient_range"]
-        exact_index = (position / total_positions) * (len(gradient_range) - 1)
+        if len(gradient_range) == 0:
+            return f"\033[38;5;{55}m"
+        
+        # Adjust position to avoid abrupt changes
+        adjusted_pos = position + start_pos
+        exact_index = (adjusted_pos / (total_positions + start_pos)) * (len(gradient_range) - 1)
         color_index = min(int(exact_index), len(gradient_range) - 1)
         return f"\033[38;5;{gradient_range[color_index]}m"
 
@@ -410,6 +409,7 @@ def clear_screen():
 
 def display_gradient_ascii_header_only():
     """Display only the header (ASCII art and made by text)"""
+    # Clean ASCII art without extra spaces
     ascii_graphic = [
         "⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         "⠀⠀⠀⠀⠀⡀⣰⡿⠛⠛⠿⢶⣦⣀⠀⢀⣀⣀⣀⣀⣠⡾⠋⠀⠀⠹⣷⣄⣤⣶⡶⠿⠿⣷⡄⠀⠀⠀⠀⠀",
@@ -445,31 +445,34 @@ def display_gradient_ascii_header_only():
         "                                    "
     ]
     
-    all_lines = ascii_graphic + ascii_text + ["made by @uekv on discord"]
-    total_lines = len(all_lines)
+    # Calculate positions for smooth gradient
+    total_ascii_lines = len(ascii_graphic)
+    total_text_lines = len(ascii_text)
+    total_lines = total_ascii_lines + total_text_lines + 2  # +2 for made by text and separator
     
     # Display graphic art with smooth gradient
     for i, line in enumerate(ascii_graphic):
         color = get_gradient_color(i, total_lines)
-        print(f"{color}{line}{Style.RESET_ALL}")
+        print(f"{color}{line}")
     
-    print("\n")
+    print()  # Single line break
     
     # Display text art with smooth gradient
     for i, line in enumerate(ascii_text):
-        color = get_gradient_color(i + len(ascii_graphic), total_lines)
-        print(f"{color}{line}{Style.RESET_ALL}")
+        color = get_gradient_color(i + total_ascii_lines, total_lines)
+        print(f"{color}{line}")
     
-    print("\n")
+    print()  # Single line break
     
-    # Add "made by @uekv on discord" with gradient
+    # Add "made by @uekv on discord" with proper gradient
     made_by_text = "made by @uekv on discord"
-    color = get_gradient_color(len(ascii_graphic) + len(ascii_text), total_lines)
+    color = get_gradient_color(total_ascii_lines + total_text_lines, total_lines)
     print(f"{color}{made_by_text}{Style.RESET_ALL}")
     
-    # Gradient line
+    # Gradient separator line
     gradient_line = "-" * 50
-    print(f"{get_color('medium')}{gradient_line}{Style.RESET_ALL}")
+    sep_color = get_gradient_color(total_ascii_lines + total_text_lines + 1, total_lines)
+    print(f"{sep_color}{gradient_line}{Style.RESET_ALL}")
 
 def display_gradient_ascii():
     """Full display with license prompt"""
@@ -477,69 +480,50 @@ def display_gradient_ascii():
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", end="")
 
 def display_color_selection():
-    """Display color selection menu in dice format without boxes"""
+    """Display color selection menu"""
     clear_screen()
     display_gradient_ascii_header_only()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
-    # Create dice format: 3 columns, 4 rows
+    # Create clean grid: 2 columns, 5 rows
     color_keys = list(COLOR_THEMES.keys())
-    options_grid = []
     
-    # Create grid with 3 columns
-    for i in range(0, len(color_keys), 3):
-        row = []
-        for j in range(3):
+    # Display in 2 columns
+    for i in range(0, len(color_keys), 2):
+        line = ""
+        for j in range(2):
             if i + j < len(color_keys):
                 key = color_keys[i + j]
                 theme = COLOR_THEMES[key]
-                # Use the theme's actual color for display
+                # Use the theme's actual color
                 if theme.get("rainbow"):
-                    # For rainbow, show a sample rainbow color
-                    color_code = f"\033[38;5;{196}m"  # Red
+                    color_code = "\033[38;5;196m"  # Red for rainbow
                 else:
-                    color_val = theme["gradient_range"][len(theme["gradient_range"]) // 2]
-                    color_code = f"\033[38;5;{color_val}m"
-                row.append(f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {theme['name']}")
-        options_grid.append(row)
-    
-    # Display options without boxes
-    for row_idx, row in enumerate(options_grid):
-        line_parts = []
-        for option in row:
-            if option:
-                line_parts.append(option.ljust(20))
-        
-        if line_parts:
-            print("   ".join(line_parts))
+                    mid_color = theme["gradient_range"][len(theme["gradient_range"]) // 2]
+                    color_code = f"\033[38;5;{mid_color}m"
+                line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {theme['name']:<15}"
+        print(line.rstrip())
     
     print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
 def display_options_grid():
-    """Display options in dice format (3x1 grid) without boxes"""
+    """Display options menu"""
     clear_screen()
     display_gradient_ascii_header_only()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}\n")
     
-    # Create single row with 3 options
+    # Display options in a clean row
     options = [
         f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
         f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
         f"{get_color('light')}[3]{Style.RESET_ALL} Exit"
     ]
     
-    # Display options in a single row without boxes
-    line_parts = []
-    for option in options:
-        line_parts.append(option.ljust(25))
-    
-    print("   ".join(line_parts))
-    
-    # Add gradient separator line after options
+    print("   ".join(options))
     print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
