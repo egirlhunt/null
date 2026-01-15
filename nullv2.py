@@ -31,18 +31,18 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-# Color themes with smooth gradient ranges - DEFAULT TO PURPLE (option 4)
+# Color themes with clean, vibrant gradients
 COLOR_THEMES = {
-    "1": {"name": "Red", "gradient_range": list(range(160, 197))},
-    "2": {"name": "Blue", "gradient_range": list(range(21, 122))},
-    "3": {"name": "Green", "gradient_range": list(range(22, 119))},
-    "4": {"name": "Purple", "gradient_range": list(range(54, 130))},  # Default theme
-    "5": {"name": "Cyan", "gradient_range": list(range(23, 88))},
-    "6": {"name": "Yellow", "gradient_range": list(range(94, 227))},
-    "7": {"name": "White", "gradient_range": list(range(232, 256))},
-    "8": {"name": "Orange", "gradient_range": list(range(130, 203))},
-    "9": {"name": "Pink", "gradient_range": list(range(125, 220))},
-    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": []}
+    "1": {"name": "Red", "gradient_range": [196, 197, 198, 199, 160, 161, 124, 125, 88, 52]},  # Dark red to bright red
+    "2": {"name": "Blue", "gradient_range": [20, 21, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, 93, 99, 105, 111, 117]},  # Dark blue to light blue
+    "3": {"name": "Green", "gradient_range": [22, 28, 34, 40, 46, 47, 48, 49, 50, 51, 82, 83, 84, 85, 86, 118, 119, 120]},  # Dark green to light green
+    "4": {"name": "Purple", "gradient_range": [54, 55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171]},  # Default theme - Dark purple to light purple
+    "5": {"name": "Cyan", "gradient_range": [23, 29, 35, 41, 44, 45, 46, 47, 48, 49, 50, 51, 87, 86, 85, 84, 83, 82]},  # Dark cyan to light cyan
+    "6": {"name": "Yellow", "gradient_range": [58, 94, 100, 106, 112, 118, 184, 190, 191, 192, 193, 194, 195, 196, 226, 227, 228, 229]},  # Dark yellow to bright yellow
+    "7": {"name": "White", "gradient_range": [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]},
+    "8": {"name": "Orange", "gradient_range": [130, 131, 166, 167, 202, 203, 208, 209, 214, 215, 220, 221]},  # Dark orange to bright orange
+    "9": {"name": "Pink", "gradient_range": [125, 126, 161, 162, 197, 198, 199, 200, 201, 205, 206, 210, 211, 215, 216]},  # Dark pink to light pink
+    "10": {"name": "Rainbow", "rainbow": True}  # Proper rainbow
 }
 
 # Set default theme to Purple (option 4)
@@ -181,21 +181,18 @@ If you lose it, use the "Generate ID" option in the tool.
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
-        # Generate rainbow colors: red, orange, yellow, green, blue, indigo, violet
-        rainbow_colors = list(range(196, 207)) + list(range(208, 227, 2)) + \
-                        list(range(226, 209, -2)) + list(range(46, 87)) + \
-                        list(range(21, 122, 2)) + list(range(54, 129, 2)) + \
-                        list(range(125, 165, 2))
-        if not rainbow_colors:
-            rainbow_colors = list(range(196, 231))
+        # Proper rainbow sequence: red, orange, yellow, green, blue, indigo, violet
+        # Using vibrant ANSI colors
+        rainbow_colors = [196, 202, 208, 214, 220, 226,  # Reds to yellows
+                         190, 154, 118, 82, 46,  # Greens
+                         21, 27, 33, 39, 45, 51,  # Blues
+                         55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171]  # Purples
         
-        color_index = int(time.time() * 5) % len(rainbow_colors)
+        color_index = int(time.time() * 10) % len(rainbow_colors)
         return f"\033[38;5;{rainbow_colors[color_index]}m"
     
     # For regular themes
     gradient_range = current_theme["gradient_range"]
-    if not gradient_range:
-        return f"\033[38;5;{55}m"  # Default purple
     
     if intensity == "dark":
         return f"\033[38;5;{gradient_range[0]}m"
@@ -208,34 +205,32 @@ def get_color(intensity="medium"):
 def get_gradient_color(position, total_positions):
     """Get smooth gradient color for a specific position"""
     if current_theme.get("rainbow"):
-        # Generate proper rainbow colors in order
-        rainbow_colors = []
-        # Red to Orange
-        rainbow_colors.extend(list(range(196, 208)))
-        # Orange to Yellow
-        rainbow_colors.extend(list(range(214, 227)))
-        # Yellow to Green
-        rainbow_colors.extend(list(range(190, 155, -1)))
-        # Green to Blue
-        rainbow_colors.extend(list(range(46, 87)))
-        # Blue to Indigo
-        rainbow_colors.extend(list(range(21, 61)))
-        # Indigo to Violet
-        rainbow_colors.extend(list(range(54, 129, 2)))
-        # Violet to Pink
-        rainbow_colors.extend(list(range(125, 165, 2)))
+        # Proper smooth rainbow with vibrant colors
+        # Create segments for each rainbow color
+        rainbow_segments = [
+            ([196, 202, 208, 214, 220, 226], 0.15),  # Red to Yellow
+            ([190, 154, 118, 82, 46], 0.25),  # Greens
+            ([21, 27, 33, 39, 45, 51], 0.25),  # Blues
+            ([55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171], 0.35)  # Purples
+        ]
         
-        if not rainbow_colors:
-            rainbow_colors = list(range(196, 231))
+        # Calculate which segment we're in
+        segment_position = position / total_positions
+        cumulative = 0
         
-        color_index = int((position / total_positions) * len(rainbow_colors)) % len(rainbow_colors)
-        return f"\033[38;5;{rainbow_colors[color_index]}m"
+        for segment_colors, segment_weight in rainbow_segments:
+            if segment_position < cumulative + segment_weight:
+                # Within this segment
+                segment_relative = (segment_position - cumulative) / segment_weight
+                color_index = int(segment_relative * (len(segment_colors) - 1))
+                return f"\033[38;5;{segment_colors[color_index]}m"
+            cumulative += segment_weight
+        
+        # Fallback
+        return f"\033[38;5;{196}m"
     else:
-        # Smooth gradient through the range
+        # Smooth gradient through the theme's range
         gradient_range = current_theme["gradient_range"]
-        if not gradient_range:
-            return f"\033[38;5;{55}m"
-        
         exact_index = (position / total_positions) * (len(gradient_range) - 1)
         color_index = min(int(exact_index), len(gradient_range) - 1)
         return f"\033[38;5;{gradient_range[color_index]}m"
@@ -499,10 +494,13 @@ def display_color_selection():
             if i + j < len(color_keys):
                 key = color_keys[i + j]
                 theme = COLOR_THEMES[key]
-                color_val = theme["gradient_range"][len(theme["gradient_range"]) // 2] if theme["gradient_range"] else 55
-                color_code = f"\033[38;5;{color_val}m"
+                # Use the theme's actual color for display
                 if theme.get("rainbow"):
-                    color_code = "\033[38;5;196m"  # Red for rainbow label
+                    # For rainbow, show a sample rainbow color
+                    color_code = f"\033[38;5;{196}m"  # Red
+                else:
+                    color_val = theme["gradient_range"][len(theme["gradient_range"]) // 2]
+                    color_code = f"\033[38;5;{color_val}m"
                 row.append(f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {theme['name']}")
         options_grid.append(row)
     
