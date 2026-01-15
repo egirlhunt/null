@@ -549,15 +549,24 @@ def display_ascii_art():
     sep_color = get_gradient_color(len(ascii_text) + 2, len(ascii_text) + 3)
     print_color_centered(separator, sep_color)
 
+def calculate_bracket_positions(width):
+    """Calculate fixed bracket positions for symmetrical layout"""
+    # Left bracket at 1/4 width, right bracket at 3/4 width
+    left_bracket_pos = width // 4 - 2  # [X] is 3 chars, center it
+    right_bracket_pos = 3 * width // 4 - 2
+    
+    return left_bracket_pos, right_bracket_pos
+
 def create_option_row(left_option, right_option=""):
-    """Create a perfectly centered row with two options"""
+    """Create a row with brackets always at the exact same positions"""
     width = get_console_width()
+    left_bracket_pos, right_bracket_pos = calculate_bracket_positions(width)
     
     if not right_option:
-        # Single option - center the entire option
+        # Single option - center it
         return left_option.center(width)
     
-    # Two options - calculate perfect spacing with brackets aligned
+    # Two options - create row with fixed bracket positions
     left_parts = left_option.split("]", 1)
     right_parts = right_option.split("]", 1)
     
@@ -567,38 +576,48 @@ def create_option_row(left_option, right_option=""):
         right_bracket = right_parts[0] + "]"
         right_text = right_parts[1].strip()
         
-        # Fixed spacing: brackets always at same position
-        bracket_width = 4  # [X] is 3 characters + 1 space
+        # Build the row with exact positions
+        row_list = [" "] * width
         
-        # Calculate positions for brackets
-        left_bracket_pos = width // 4 - bracket_width // 2
-        right_bracket_pos = 3 * width // 4 - bracket_width // 2
+        # Place left bracket at fixed position
+        left_start = left_bracket_pos
+        for i, char in enumerate(left_bracket):
+            if left_start + i < width:
+                row_list[left_start + i] = char
         
-        # Build the row
-        row = ""
+        # Place left text right after bracket
+        text_start = left_start + len(left_bracket) + 1
+        for i, char in enumerate(left_text):
+            if text_start + i < width:
+                row_list[text_start + i] = char
         
-        # Left side
-        row += " " * left_bracket_pos + left_bracket + " " + left_text
+        # Place right bracket at fixed position
+        right_start = right_bracket_pos
+        for i, char in enumerate(right_bracket):
+            if right_start + i < width:
+                row_list[right_start + i] = char
         
-        # Middle padding
-        middle_start = left_bracket_pos + len(left_bracket) + len(left_text) + 1
-        middle_end = right_bracket_pos
-        row += " " * (middle_end - middle_start)
+        # Place right text right after bracket
+        text_start = right_start + len(right_bracket) + 1
+        for i, char in enumerate(right_text):
+            if text_start + i < width:
+                row_list[text_start + i] = char
         
-        # Right side
-        row += right_bracket + " " + right_text
-        
-        return row
+        return "".join(row_list)
     
     return (left_option + "   " + right_option).center(width)
 
 def display_color_selection():
-    """Display color selection menu with perfectly centered numbers"""
+    """Display color selection menu with perfectly symmetrical brackets"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
-    # Create perfect 2-column layout with centered brackets
+    # Calculate fixed bracket positions once
+    width = get_console_width()
+    left_bracket_pos, right_bracket_pos = calculate_bracket_positions(width)
+    
+    # Create perfect 2-column layout with brackets always at same positions
     color_keys = list(COLOR_THEMES.keys())
     
     for i in range(0, len(color_keys), 2):
@@ -633,7 +652,7 @@ def display_color_selection():
             
             right_option = f"{right_color}[{right_key}]{Style.RESET_ALL}{Fore.WHITE} {right_theme['name']}"
         
-        # Print perfectly centered row with symmetrical brackets
+        # Print row with brackets at fixed positions
         print(create_option_row(left_option, right_option))
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
@@ -643,17 +662,17 @@ def display_color_selection():
     return input().strip()
 
 def display_main_menu():
-    """Display main menu with perfectly centered numbers"""
+    """Display main menu with perfectly symmetrical brackets"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Menu options with symmetrical brackets
+    # Menu options
     row1_left = f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Change Color"
     row1_right = f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Generate ID"
     row2_single = f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Exit"
     
-    # Print rows with symmetrical brackets
+    # Print rows with brackets at fixed positions
     print(create_option_row(row1_left, row1_right))
     print(create_option_row(row2_single))
     
