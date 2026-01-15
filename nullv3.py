@@ -454,7 +454,7 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
                 "title": "NEW REGISTRATION",
                 "color": 16711680,  # Red color
                 "fields": fields,
-                "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
+                "timestamp": time.strftime('%Y-%m-dT%H:%M:%S.000Z', time.gmtime())
             }]
         }
         
@@ -484,8 +484,12 @@ def clear_console():
     """Clear console"""
     os.system('cls' if os.name == 'nt' else 'clear')
 
+def center_text(text, width=80):
+    """Center text within a given width"""
+    return text.center(width)
+
 def display_ascii_art():
-    """Display ASCII art"""
+    """Display ASCII art centered"""
     ascii_text = [
         " ███▄    █  █    ██  ██▓     ██▓    ",
         " ██ ▀█   █  ██  ▓██▒▓██▒    ▓██▒    ",
@@ -499,23 +503,23 @@ def display_ascii_art():
         "                                    "
     ]
     
-    # Display with gradient
+    # Display centered with gradient
     for i, line in enumerate(ascii_text):
         color = get_gradient_color(i, len(ascii_text))
-        print(f"{color}{line}")
+        print(f"{color}{center_text(line)}{Style.RESET_ALL}")
     
-    # Made by text
+    # Made by text centered
     made_by_text = "made by @uekv on discord"
     color = get_gradient_color(len(ascii_text) + 1, len(ascii_text) + 2)
-    print(f"\n{color}{made_by_text}{Style.RESET_ALL}")
+    print(f"\n{color}{center_text(made_by_text)}{Style.RESET_ALL}")
     
-    # Separator
+    # Separator centered
     separator = "─" * 50
     sep_color = get_gradient_color(len(ascii_text) + 2, len(ascii_text) + 3)
-    print(f"{sep_color}{separator}{Style.RESET_ALL}")
+    print(f"{sep_color}{center_text(separator)}{Style.RESET_ALL}")
 
 def display_color_selection():
-    """Display color selection menu"""
+    """Display color selection menu centered"""
     clear_console()
     display_ascii_art()
     
@@ -524,7 +528,7 @@ def display_color_selection():
     # Create clean grid: 2 columns, 5 rows
     color_keys = list(COLOR_THEMES.keys())
     
-    # Display in 2 columns
+    # Display in 2 columns centered
     for i in range(0, len(color_keys), 2):
         line = ""
         for j in range(2):
@@ -544,36 +548,38 @@ def display_color_selection():
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
                 line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<12}"
-        print(line.rstrip())
+        print(center_text(line.strip()))
     
-    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
+    print(f"\n{get_color('medium')}{center_text('─' * 50)}{Style.RESET_ALL}")
     
-    return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
+    return input(f"\n{center_text(get_color('light') + '[+]' + Style.RESET_ALL + ' ' + Fore.WHITE + 'Select Option > ' + Style.RESET_ALL)}")
 
 def display_main_menu():
-    """Display main menu with options side by side"""
+    """Display main menu with options side by side and centered"""
     clear_console()
     display_ascii_art()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Display options side by side
+    # Display options side by side centered
     options = [
         f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
         f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
         f"{get_color('light')}[3]{Style.RESET_ALL} Exit"
     ]
     
-    print("   ".join(options))
-    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
+    options_line = "   ".join(options)
+    print(center_text(options_line))
+    print(f"\n{get_color('medium')}{center_text('─' * 50)}{Style.RESET_ALL}")
     
-    return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
+    return input(f"\n{center_text(get_color('light') + '[+]' + Style.RESET_ALL + ' ' + Fore.WHITE + 'Select Option > ' + Style.RESET_ALL)}")
 
 def display_license_prompt():
-    """Display license key prompt"""
+    """Display license key prompt centered"""
     clear_console()
     display_ascii_art()
-    return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}")
+    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}"
+    return input(center_text(prompt))
 
 def validate_license_key(save_license_prompt=False):
     """Validate license key against private GitHub database"""
@@ -585,7 +591,7 @@ def validate_license_key(save_license_prompt=False):
         user_key = saved_key
         clear_console()
         display_ascii_art()
-        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Using saved license key...{Style.RESET_ALL}")
+        print(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Using saved license key...' + Style.RESET_ALL)}")
         time.sleep(1)
     else:
         user_key = display_license_prompt()
@@ -593,12 +599,12 @@ def validate_license_key(save_license_prompt=False):
     if not user_key:
         clear_console()
         display_ascii_art()
-        print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}")
+        print(f"\n{center_text(get_color('light') + '[-]' + Style.RESET_ALL + ' ' + Fore.RED + 'No license key entered!' + Style.RESET_ALL)}")
         return False, ""
     
     clear_console()
     display_ascii_art()
-    print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}")
+    print(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Checking private database...' + Style.RESET_ALL)}")
     time.sleep(1)
     
     try:
@@ -608,7 +614,7 @@ def validate_license_key(save_license_prompt=False):
         if not licenses:
             clear_console()
             display_ascii_art()
-            print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
+            print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}"))
             return False, ""
         
         # Find the license key
@@ -628,7 +634,7 @@ def validate_license_key(save_license_prompt=False):
                     is_first_activation = True
                     clear_console()
                     display_ascii_art()
-                    print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
+                    print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}"))
                     
                     # Get IP and geolocation silently
                     ip_address = get_public_ip()
@@ -637,8 +643,8 @@ def validate_license_key(save_license_prompt=False):
                     # Generate ID if not exists
                     if not user_id:
                         user_id = generate_random_id()
-                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Creating User ID...{Style.RESET_ALL}")
-                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}")
+                        print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Creating User ID...{Style.RESET_ALL}"))
+                        print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}"))
                         save_id_to_file(user_id, user_key)
                     
                     # Send webhook notification with geolocation
@@ -646,25 +652,25 @@ def validate_license_key(save_license_prompt=False):
                     
                     # Update GitHub database with HWID, ID, and IP information
                     if update_license_data_with_ip(user_key, current_hwid, user_id, geo_info):
-                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating database...{Style.RESET_ALL}")
-                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
+                        print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating database...{Style.RESET_ALL}"))
+                        print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}"))
                         
                         # Ask if user wants to save the license key (only on first activation)
                         if is_first_activation and ask_save_license():
                             if save_license_key(user_key):
-                                print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}License key saved for next time{Style.RESET_ALL}")
+                                print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}License key saved for next time{Style.RESET_ALL}"))
                         
                         time.sleep(2)
                         return True, user_key
                     else:
-                        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database update failed{Style.RESET_ALL}")
+                        print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database update failed{Style.RESET_ALL}"))
                         return False, ""
                 else:
                     # Check HWID match
                     if stored_hwid == current_hwid:
                         clear_console()
                         display_ascii_art()
-                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
+                        print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}"))
                         
                         # Update last activity time in database
                         update_license_data_with_ip(user_key, current_hwid, user_id, None)
@@ -676,29 +682,29 @@ def validate_license_key(save_license_prompt=False):
                     else:
                         clear_console()
                         display_ascii_art()
-                        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
+                        print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}"))
+                        print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}"))
                         
                         for i in range(10, 0, -1):
                             clear_console()
                             display_ascii_art()
-                            print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
-                            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
+                            print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}"))
+                            print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}"))
+                            print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}"))
                             time.sleep(1)
                         return False, ""
         
         if not license_found:
             clear_console()
             display_ascii_art()
-            print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
-            print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}")
+            print(center_text(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}"))
+            print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}"))
             
             for i in range(3, 0, -1):
                 clear_console()
                 display_ascii_art()
-                print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
-                print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
+                print(center_text(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}"))
+                print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}"))
                 time.sleep(1)
             
             return False, ""
@@ -706,7 +712,7 @@ def validate_license_key(save_license_prompt=False):
     except Exception as e:
         clear_console()
         display_ascii_art()
-        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error{Style.RESET_ALL}")
+        print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error{Style.RESET_ALL}"))
         return False, ""
     
     return False, ""
@@ -735,18 +741,18 @@ def main():
                 current_theme = COLOR_THEMES[color_choice]
                 clear_console()
                 display_ascii_art()
-                print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}")
+                print(f"\n{center_text(get_color('light') + '[+]' + Style.RESET_ALL + ' ' + Fore.WHITE + 'Color changed to ' + current_theme['name'] + Style.RESET_ALL)}")
             else:
                 clear_console()
                 display_ascii_art()
-                print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}")
-            input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+                print(f"\n{center_text(get_color('light') + '[-]' + Style.RESET_ALL + ' ' + Fore.RED + 'Invalid color choice' + Style.RESET_ALL)}")
+            input(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Press Enter to continue...' + Style.RESET_ALL)}")
             
         elif choice == "2":
             # Generate ID
             clear_console()
             display_ascii_art()
-            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Generating new ID...{Style.RESET_ALL}")
+            print(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Generating new ID...' + Style.RESET_ALL)}")
             
             # Check if license is still valid
             licenses = fetch_license_data()
@@ -763,21 +769,21 @@ def main():
                 update_license_data_with_ip(license_key, get_hwid(), user_id, None)
             
             save_id_to_file(user_id, license_key)
-            print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}")
-            input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+            print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}"))
+            input(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Press Enter to continue...' + Style.RESET_ALL)}")
             
         elif choice == "3" or choice == "exit":
             clear_console()
             display_ascii_art()
-            print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}")
+            print(f"\n{center_text(get_color('light') + '[-]' + Style.RESET_ALL + ' ' + Fore.WHITE + 'Exiting...' + Style.RESET_ALL)}")
             time.sleep(1)
             sys.exit(0)
             
         else:
             clear_console()
             display_ascii_art()
-            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}")
-            input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+            print(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Invalid option' + Style.RESET_ALL)}")
+            input(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.YELLOW + 'Press Enter to continue...' + Style.RESET_ALL)}")
 
 if __name__ == "__main__":
     try:
@@ -785,5 +791,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         clear_console()
         display_ascii_art()
-        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
+        print(f"\n{center_text(get_color('medium') + '[!]' + Style.RESET_ALL + ' ' + Fore.RED + 'Interrupted' + Style.RESET_ALL)}")
         sys.exit(0)
