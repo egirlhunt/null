@@ -17,9 +17,12 @@ REPO_OWNER = "egirlhunt"
 REPO_NAME = "nulllkeys"
 FILE_PATH = "keys.json"
 
-# GitHub API URLs
-GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FILE_PATH}"
+# FIXED: Correct GitHub URLs
+GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/refs/heads/main/{FILE_PATH}"
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+
+# Alternative raw URL (GitHub Pages style)
+GITHUB_RAW_URL_ALT = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FILE_PATH}?raw=true"
 
 # Webhook URL (encrypted)
 WEBHOOK_KEY = "uekv_encryption_key_2024"
@@ -64,27 +67,41 @@ def get_hwid():
 
 def fetch_license_data():
     """Fetch and parse license data from GitHub database"""
-    try:
-        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to database...{Style.RESET_ALL}")
-        response = requests.get(GITHUB_RAW_URL, timeout=10)
-        if response.status_code == 200:
-            data = response.text.strip()
-            # Try to parse as JSON
-            try:
-                licenses = json.loads(data)
-                print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Database connected successfully{Style.RESET_ALL}")
-                return licenses
-            except json.JSONDecodeError as e:
-                print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database format error: {e}{Style.RESET_ALL}")
-                # Try to fix common JSON issues
-                data = data.strip()
-                if data.startswith('{') and data.endswith('}'):
-                    data = '[' + data + ']'
-                return json.loads(data)
-        else:
-            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database connection failed: {response.status_code}{Style.RESET_ALL}")
-    except Exception as e:
-        print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
+    urls_to_try = [
+        GITHUB_RAW_URL,
+        GITHUB_RAW_URL_ALT,
+        f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/master/{FILE_PATH}",
+        f"https://cdn.jsdelivr.net/gh/{REPO_OWNER}/{REPO_NAME}/{FILE_PATH}"
+    ]
+    
+    for url in urls_to_try:
+        try:
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to database ({url.split('/')[2]})...{Style.RESET_ALL}")
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.text.strip()
+                # Try to parse as JSON
+                try:
+                    licenses = json.loads(data)
+                    print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Database connected successfully{Style.RESET_ALL}")
+                    return licenses
+                except json.JSONDecodeError as e:
+                    print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database format error: {e}{Style.RESET_ALL}")
+                    # Try to fix common JSON issues
+                    data = data.strip()
+                    if data.startswith('{') and data.endswith('}'):
+                        data = '[' + data + ']'
+                    try:
+                        return json.loads(data)
+                    except:
+                        continue
+            else:
+                print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Failed with {response.status_code}, trying next URL...{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Error with {url.split('/')[2]}: {e}{Style.RESET_ALL}")
+            continue
+    
+    print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}All database connections failed{Style.RESET_ALL}")
     return []
 
 def update_license_data(license_key, new_hwid):
@@ -99,6 +116,7 @@ def update_license_data(license_key, new_hwid):
         response = requests.get(GITHUB_API_URL, headers=headers, timeout=10)
         if response.status_code != 200:
             print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Failed to access database: {response.status_code}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure the file exists at: {GITHUB_API_URL}{Style.RESET_ALL}")
             return False
         
         file_info = response.json()
@@ -294,6 +312,7 @@ def validate_license_key():
         
         if not licenses:
             print(f"{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Database empty or unavailable{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Check if keys.json exists at: https://github.com/egirlhunt/nulllkeys{Style.RESET_ALL}")
             return False
         
         # Find the license key
