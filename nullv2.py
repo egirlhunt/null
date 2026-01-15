@@ -46,8 +46,17 @@ COLOR_THEMES = {
     "10": {"name": "Rainbow", "rainbow": True}
 }
 
+# Text alignment formats
+ALIGNMENT_FORMATS = {
+    "1": {"name": "Left", "align": "left"},
+    "2": {"name": "Center", "align": "center"},
+    "3": {"name": "Right", "align": "right"}
+}
+
 # Set default theme to Purple (option 7)
 current_theme = COLOR_THEMES["7"]
+# Set default alignment to Center
+current_alignment = ALIGNMENT_FORMATS["2"]
 
 def hsv_to_ansi(h, s=1.0, v=1.0):
     """Convert HSV to smooth ANSI 256 color"""
@@ -246,6 +255,40 @@ def get_gradient_color(position, total_positions):
     ansi = hsv_to_ansi(hue, 0.9, value)
     return f"\033[38;5;{ansi}m"
 
+def align_text(text, width=50):
+    """Align text based on current alignment setting"""
+    if current_alignment["align"] == "center":
+        return text.center(width)
+    elif current_alignment["align"] == "right":
+        return text.rjust(width)
+    else:  # left
+        return text.ljust(width)
+
+def clear_console():
+    """Clear console"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def display_header():
+    """Display header with title"""
+    clear_console()
+    
+    # Title with alignment
+    title = "NULLKEYS TOOL"
+    separator = "─" * 50
+    
+    # Apply gradient to title
+    title_color = get_gradient_color(0, 3)
+    separator_color = get_gradient_color(1, 3)
+    made_by_color = get_gradient_color(2, 3)
+    
+    print(f"\n{title_color}{align_text(title)}{Style.RESET_ALL}")
+    print(f"{separator_color}{align_text(separator)}{Style.RESET_ALL}")
+    
+    # Made by text
+    made_by_text = "made by @uekv on discord"
+    print(f"{made_by_color}{align_text(made_by_text)}{Style.RESET_ALL}")
+    print(f"{separator_color}{align_text(separator)}{Style.RESET_ALL}")
+
 def fetch_license_data():
     """Fetch and parse license data from private GitHub repository"""
     try:
@@ -443,85 +486,9 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
     except Exception:
         return False
 
-def clear_console_keep_ascii():
-    """Clear console but keep ASCII art visible"""
-    # Clear screen and move to home position
-    print("\033[2J\033[H")  # Clear screen and move to home
-
-def display_gradient_ascii_header_only():
-    """Display only the header (ASCII art and made by text)"""
-    # Clean ASCII art without extra spaces
-    ascii_graphic = [
-        "⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⡀⣰⡿⠛⠛⠿⢶⣦⣀⠀⢀⣀⣀⣀⣀⣠⡾⠋⠀⠀⠹⣷⣄⣤⣶⡶⠿⠿⣷⡄⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⢰⣿⠁⠀⠀⠀⠀⠈⠙⠛⠛⠋⠉⠉⢹⡟⠁⠀⠀⣀⣀⠘⣿⠉⠀⠀⠀⠀⠘⣿⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⢸⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⠀⠀⣾⡋⣽⠿⠛⠿⢶⣤⣤⣤⣤⣿⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⢸⣿⡴⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣄⡀⠀⢈⣻⡏⠀⠀⠀⠀⣿⣀⠀⠈⠙⣷⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⣰⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠛⠛⠛⠙⢷⣄⣀⣀⣼⣏⣿⠀⠀⢀⣿⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⢸⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠙⣿⡉⠉⠁⢀⣠⣿⡇⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠗⠾⠟⠋⢹⣷⠀⠀⠀⠀",
-        "⢀⣤⣤⣤⣿⣤⣄⠀⠀⠀⠴⠚⠲⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⡆⠀⠀⠀⠀⢀⣈⣿⣀⣀⡀⠀",
-        "⠀⠀⠀⠈⣿⣠⣾⠟⠛⢷⡄⠀⠀⠀⠀⠀⠀⠀⡤⠶⢦⡀⠀⠀⠀⠀⠹⠯⠃⠀⠀⠀⠈⠉⢩⡿⠉⠉⠉⠁",
-        "⠀⠀⣤⡶⠿⣿⣇⠀⠀⠸⣷⠀⠀⠀⠀⠀⠀⠀⠓⠶⠞⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢤⣼⣯⣀⣀⠀⠀",
-        "⠀⢰⣯⠀⠀⠈⠻⠀⠀⠀⣿⣶⣤⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⡿⠁⠉⠉⠁⠀",
-        "⠀⠀⠙⣷⣄⠀⠀⠀⠀⠀⢀⣀⣀⠙⢿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢈⣿⡿⢷⣄⡀⠀⠀⠀",
-        "⠀⠀⠀⠈⠙⣷⠀⠀⠀⣴⠟⠉⠉⠀⠀⣿⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣠⣤⣾⠟⠉⠀⠀⠈⠉⠀⠀⠀",
-        "⠀⠀⠀⠀⠰⣿⠀⠀⠀⠙⢧⣤⡶⠟⢀⣿⠛⢟⡟⡯⠽⢶⡶⠾⢿⣻⣏⣹⡏⣁⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⠹⣷⣄⠀⠀⠀⠀⠀⣠⣾⠏⠀⠀⠙⠛⠛⠋⠀⠀⢀⣽⠟⠛⠖⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⠀⠀⠙⠻⠷⠶⠿⠟⠋⠹⣷⣤⣀⡀⠄⣡⣀⣠⣴⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣍⣉⣻⣏⣉⣡⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
-    ]
-    
-    ascii_text = [
-        " ███▄    █  █    ██  ██▓     ██▓    ",
-        " ██ ▀█   █  ██  ▓██▒▓██▒    ▓██▒    ",
-        "▓██  ▀█ ██▒▓██  ▒██░▒██░    ▒██░    ",
-        "▓██▒  ▐▌██▒▓▓█  ░██░▒██░    ▒██░    ",
-        "▒██░   ▓██░▒▒█████▓ ░██████▒░██████▒",
-        "░ ▒░   ▒ ▒ ░▒▓▒ ▒ ▒ ░ ▒░▓  ░░ ▒░▓  ░",
-        "░ ░░   ░ ▒░░░▒░ ░ ░ ░ ░ ▒  ░░ ░ ▒  ░",
-        "   ░   ░ ░  ░░░ ░ ░   ░ ░     ░ ░   ",
-        "         ░    ░         ░  ░    ░  ░",
-        "                                    "
-    ]
-    
-    # Calculate positions for smooth gradient
-    total_ascii_lines = len(ascii_graphic) + len(ascii_text) + 2  # +2 for made by text and separator
-    
-    # Display graphic art with smooth gradient
-    for i, line in enumerate(ascii_graphic):
-        color = get_gradient_color(i, total_ascii_lines)
-        print(f"{color}{line}")
-    
-    print()  # Single line break
-    
-    # Display text art with smooth gradient
-    for i, line in enumerate(ascii_text):
-        color = get_gradient_color(i + len(ascii_graphic), total_ascii_lines)
-        print(f"{color}{line}")
-    
-    print()  # Single line break
-    
-    # Add "made by @uekv on discord" with proper gradient
-    made_by_text = "made by @uekv on discord"
-    color = get_gradient_color(len(ascii_graphic) + len(ascii_text), total_ascii_lines)
-    print(f"{color}{made_by_text}{Style.RESET_ALL}")
-    
-    # Gradient separator line
-    gradient_line = "─" * 50
-    sep_color = get_gradient_color(len(ascii_graphic) + len(ascii_text) + 1, total_ascii_lines)
-    print(f"{sep_color}{gradient_line}{Style.RESET_ALL}")
-
-def display_gradient_ascii():
-    """Full display with license prompt"""
-    display_gradient_ascii_header_only()
-    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", end="")
-
 def display_color_selection():
     """Display color selection menu"""
-    clear_console_keep_ascii()
-    display_gradient_ascii_header_only()
+    display_header()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
@@ -548,43 +515,63 @@ def display_color_selection():
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
                 line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<12}"
-        print(line.rstrip())
+        print(align_text(line.strip()))
     
-    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
+    print(f"\n{get_color('medium')}{align_text('─' * 50)}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
-def display_options_grid():
-    """Display options menu"""
-    clear_console_keep_ascii()
-    display_gradient_ascii_header_only()
+def display_format_selection():
+    """Display text format selection menu"""
+    display_header()
+    
+    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Text Format Selection{Style.RESET_ALL}\n")
+    
+    # Display format options
+    for key, format_info in ALIGNMENT_FORMATS.items():
+        format_color = get_color('light')
+        print(f"{format_color}[{key}]{Style.RESET_ALL}{Fore.WHITE} {format_info['name']:<10}")
+    
+    print(f"\n{get_color('medium')}{align_text('─' * 50)}{Style.RESET_ALL}")
+    
+    return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
+
+def display_main_menu():
+    """Display main menu"""
+    display_header()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Display options in a clean row
+    # Display options with nice spacing
     options = [
-        f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
-        f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
-        f"{get_color('light')}[3]{Style.RESET_ALL} Exit"
+        f"{get_color('light')}[1]{Style.RESET_ALL} Change Color",
+        f"{get_color('light')}[2]{Style.RESET_ALL} Change Format", 
+        f"{get_color('light')}[3]{Style.RESET_ALL} Generate ID",
+        f"{get_color('light')}[4]{Style.RESET_ALL} Exit"
     ]
     
-    print("   ".join(options))
-    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
+    for option in options:
+        print(align_text(option))
+    
+    print(f"\n{get_color('medium')}{align_text('─' * 50)}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
+def display_license_prompt():
+    """Display license key prompt"""
+    display_header()
+    return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}")
+
 def validate_license_key():
     """Validate license key against private GitHub database"""
-    user_key = input().strip()
+    user_key = display_license_prompt()
     
     if not user_key:
-        clear_console_keep_ascii()
-        display_gradient_ascii_header_only()
+        display_header()
         print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}")
         return False, ""
     
-    clear_console_keep_ascii()
-    display_gradient_ascii_header_only()
+    display_header()
     print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}")
     time.sleep(1)
     
@@ -593,8 +580,7 @@ def validate_license_key():
         licenses = fetch_license_data()
         
         if not licenses:
-            clear_console_keep_ascii()
-            display_gradient_ascii_header_only()
+            display_header()
             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
             return False, ""
         
@@ -611,8 +597,7 @@ def validate_license_key():
                 
                 if not stored_hwid:
                     # First time activation
-                    clear_console_keep_ascii()
-                    display_gradient_ascii_header_only()
+                    display_header()
                     print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
                     
                     # Get IP and geolocation silently
@@ -639,8 +624,7 @@ def validate_license_key():
                 else:
                     # Check HWID match
                     if stored_hwid == current_hwid:
-                        clear_console_keep_ascii()
-                        display_gradient_ascii_header_only()
+                        display_header()
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
                         
                         # Update last activity time in database
@@ -651,14 +635,12 @@ def validate_license_key():
                         time.sleep(1)
                         return True, user_key
                     else:
-                        clear_console_keep_ascii()
-                        display_gradient_ascii_header_only()
+                        display_header()
                         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
                         print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
                         
                         for i in range(10, 0, -1):
-                            clear_console_keep_ascii()
-                            display_gradient_ascii_header_only()
+                            display_header()
                             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
                             print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
                             print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
@@ -666,14 +648,12 @@ def validate_license_key():
                         return False, ""
         
         if not license_found:
-            clear_console_keep_ascii()
-            display_gradient_ascii_header_only()
+            display_header()
             print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}")
             
             for i in range(3, 0, -1):
-                clear_console_keep_ascii()
-                display_gradient_ascii_header_only()
+                display_header()
                 print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
                 print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
                 time.sleep(1)
@@ -681,18 +661,14 @@ def validate_license_key():
             return False, ""
             
     except Exception as e:
-        clear_console_keep_ascii()
-        display_gradient_ascii_header_only()
+        display_header()
         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error{Style.RESET_ALL}")
         return False, ""
     
     return False, ""
 
 def main():
-    global current_theme
-    
-    clear_console_keep_ascii()
-    display_gradient_ascii()
+    global current_theme, current_alignment
     
     valid_license, license_key = validate_license_key()
     
@@ -701,26 +677,35 @@ def main():
     
     # Main menu loop
     while True:
-        choice = display_options_grid()
+        choice = display_main_menu()
         
         if choice == "1":
             # Change color
             color_choice = display_color_selection()
             if color_choice in COLOR_THEMES:
                 current_theme = COLOR_THEMES[color_choice]
-                clear_console_keep_ascii()
-                display_gradient_ascii_header_only()
+                display_header()
                 print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}")
             else:
-                clear_console_keep_ascii()
-                display_gradient_ascii_header_only()
+                display_header()
                 print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
         elif choice == "2":
+            # Change format
+            format_choice = display_format_selection()
+            if format_choice in ALIGNMENT_FORMATS:
+                current_alignment = ALIGNMENT_FORMATS[format_choice]
+                display_header()
+                print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Text format changed to {current_alignment['name']}{Style.RESET_ALL}")
+            else:
+                display_header()
+                print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid format choice{Style.RESET_ALL}")
+            input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+            
+        elif choice == "3":
             # Generate ID
-            clear_console_keep_ascii()
-            display_gradient_ascii_header_only()
+            display_header()
             print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}")
             
             # Check if license is still valid
@@ -741,24 +726,22 @@ def main():
             print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
-        elif choice == "3" or choice == "exit":
-            clear_console_keep_ascii()
-            display_gradient_ascii_header_only()
-            print(f"\n{Fore.WHITE}[{get_color('light')}-{Fore.WHITE}]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}")
+        elif choice == "4":
+            # Exit
+            display_header()
+            print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}")
             time.sleep(1)
             sys.exit(0)
             
         else:
-            clear_console_keep_ascii()
-            display_gradient_ascii_header_only()
-            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}")
+            display_header()
+            print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid option{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        clear_console_keep_ascii()
-        display_gradient_ascii_header_only()
-        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
+        display_header()
+        print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
         sys.exit(0)
