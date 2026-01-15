@@ -239,8 +239,8 @@ If you lose it, use the "Generate ID" option in the tool.
     with open("ID.txt", "w") as f:
         f.write(warning_text)
     
-    print_color_centered(f"[+] ID saved to ID.txt", get_color('medium'))
-    print_color_centered(f"[!] Keep this file safe! Never share it!", get_color('medium'))
+    print_centered(f"{get_color('medium')}[+]{Style.RESET_ALL} {Fore.WHITE}ID saved to ID.txt{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Keep this file safe! Never share it!{Style.RESET_ALL}")
 
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
@@ -551,12 +551,12 @@ def display_ascii_art():
     print_color_centered(separator, sep_color)
 
 def display_color_selection():
-    """Display color selection menu centered in 2-column layout"""
+    """Display color selection menu centered in perfect 2-column layout"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
-    # Create 2 columns: 2 options per row
+    # Create perfect 2-column layout with proper spacing
     color_keys = list(COLOR_THEMES.keys())
     
     for i in range(0, len(color_keys), 2):
@@ -577,11 +577,11 @@ def display_color_selection():
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
                 
-                option_text = f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name}"
+                option_text = f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:12}"
                 row_options.append(option_text)
         
-        # Join options with proper spacing for 2 columns
-        row_text = "    ".join(row_options)
+        # Create perfectly centered row with 8 spaces between options
+        row_text = "        ".join(row_options)
         print_centered(row_text)
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
@@ -592,19 +592,19 @@ def display_color_selection():
     return input().strip()
 
 def display_main_menu():
-    """Display main menu with options side by side and centered"""
+    """Display main menu with perfect 2-column layout"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Create 2 options per row layout
+    # Create perfect 2-column layout
     menu_options = [
         (f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID"),
         (f"{get_color('light')}[3]{Style.RESET_ALL} Exit", "")
     ]
     
     for row in menu_options:
-        row_text = "    ".join([opt for opt in row if opt])  # Join non-empty options
+        row_text = "        ".join([opt for opt in row if opt])  # 8 spaces between options
         print_centered(row_text)
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
@@ -723,13 +723,13 @@ def validate_license_key(save_license_prompt=False):
                     else:
                         display_ascii_art()
                         print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                        print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
+                        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
                         
                         for i in range(10, 0, -1):
                             display_ascii_art()
                             print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
-                            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
+                            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
+                            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
                             time.sleep(1)
                         return False, ""
         
