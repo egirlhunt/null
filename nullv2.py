@@ -31,17 +31,27 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-# Color themes with clean, vibrant gradients
+# Color themes with smooth, extended gradients
+def generate_gradient(start_color, end_color, steps=30):
+    """Generate smooth gradient between two colors"""
+    gradient = []
+    for i in range(steps):
+        ratio = i / (steps - 1)
+        color = int(start_color + (end_color - start_color) * ratio)
+        gradient.append(color)
+    return gradient
+
+# Define color themes with smooth gradients
 COLOR_THEMES = {
-    "1": {"name": "Red", "gradient_range": [196, 160, 124, 88, 52]},  # Dark red to bright red
-    "2": {"name": "Blue", "gradient_range": [20, 27, 33, 39, 45, 51, 57, 63, 69, 75, 81, 87, 93, 99, 105, 111, 117]},  # Dark blue to light blue
-    "3": {"name": "Green", "gradient_range": [22, 28, 34, 40, 46, 47, 48, 49, 50, 51, 82, 83, 84, 85, 86, 118, 119, 120]},  # Dark green to light green
-    "4": {"name": "Purple", "gradient_range": [54, 55, 56, 57, 93, 99, 105, 111, 117, 123, 129, 135, 141, 147, 153, 159, 165, 171, 177, 183, 189, 195, 201, 207, 213]},  # Purple to pink gradient
-    "5": {"name": "Cyan", "gradient_range": [23, 29, 35, 41, 44, 45, 46, 47, 48, 49, 50, 51, 87, 86, 85, 84, 83, 82]},  # Dark cyan to light cyan
-    "6": {"name": "Yellow", "gradient_range": [58, 94, 100, 106, 112, 118, 184, 190, 191, 192, 193, 194, 195, 196, 226, 227, 228, 229]},  # Dark yellow to bright yellow
-    "7": {"name": "White", "gradient_range": [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]},
-    "8": {"name": "Orange", "gradient_range": [130, 131, 166, 167, 202, 203, 208, 209, 214, 215, 220, 221]},  # Dark orange to bright orange
-    "9": {"name": "Pink", "gradient_range": [125, 126, 161, 162, 197, 198, 199, 200, 201, 205, 206, 210, 211, 215, 216]},  # Dark pink to light pink
+    "1": {"name": "Red", "gradient_range": generate_gradient(52, 196, 35)},  # Dark red to bright red
+    "2": {"name": "Blue", "gradient_range": generate_gradient(17, 117, 40)},  # Dark blue to light blue
+    "3": {"name": "Green", "gradient_range": generate_gradient(22, 120, 35)},  # Dark green to light green
+    "4": {"name": "Purple", "gradient_range": generate_gradient(54, 213, 45)},  # Dark purple to pink
+    "5": {"name": "Cyan", "gradient_range": generate_gradient(23, 87, 30)},  # Dark cyan to light cyan
+    "6": {"name": "Yellow", "gradient_range": generate_gradient(58, 229, 40)},  # Dark yellow to bright yellow
+    "7": {"name": "White", "gradient_range": generate_gradient(232, 255, 25)},  # Dark gray to white
+    "8": {"name": "Orange", "gradient_range": generate_gradient(130, 221, 25)},  # Dark orange to bright orange
+    "9": {"name": "Pink", "gradient_range": generate_gradient(125, 216, 30)},  # Dark pink to light pink
     "10": {"name": "Rainbow", "rainbow": True}  # Proper rainbow
 }
 
@@ -181,13 +191,26 @@ If you lose it, use the "Generate ID" option in the tool.
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
-        # Proper rainbow sequence: red, orange, yellow, green, blue, indigo, violet
-        rainbow_colors = [196, 202, 208, 214, 220, 226,  # Reds to yellows
-                         190, 154, 118, 82, 46,  # Greens
-                         21, 27, 33, 39, 45, 51,  # Blues
-                         55, 56, 57, 93, 99, 105, 111, 117, 123, 129]  # Purples
+        # Slow, smooth rainbow with more colors
+        rainbow_colors = []
+        # Red to Orange (slow transition)
+        for i in range(196, 209, 2):  # More steps
+            rainbow_colors.append(i)
+        # Orange to Yellow
+        for i in range(208, 227, 2):
+            rainbow_colors.append(i)
+        # Yellow to Green
+        for i in range(226, 44, -4):  # Slower transition
+            rainbow_colors.append(i)
+        # Green to Blue
+        for i in range(46, 88, 2):
+            rainbow_colors.append(i)
+        # Blue to Purple
+        for i in range(20, 130, 3):
+            rainbow_colors.append(i)
         
-        color_index = int(time.time() * 5) % len(rainbow_colors)
+        # Use time for slow animation (every 2 seconds per cycle)
+        color_index = int((time.time() * 0.5) % len(rainbow_colors))
         return f"\033[38;5;{rainbow_colors[color_index]}m"
     
     # For regular themes
@@ -201,26 +224,29 @@ def get_color(intensity="medium"):
         middle_index = len(gradient_range) // 2
         return f"\033[38;5;{gradient_range[middle_index]}m"
 
-def get_gradient_color(position, total_positions, start_pos=0):
+def get_gradient_color(position, total_positions):
     """Get smooth gradient color for a specific position"""
     if current_theme.get("rainbow"):
-        # Proper smooth rainbow
+        # Create a very smooth rainbow gradient with many colors
+        rainbow_segments = [
+            (list(range(196, 209)), 0.15),  # Red to Orange-red
+            (list(range(208, 227)), 0.25),  # Orange to Yellow
+            (list(range(226, 45, -3)), 0.25),  # Yellow to Green (slower)
+            (list(range(46, 88)), 0.20),  # Green to Cyan
+            (list(range(20, 130, 2)), 0.15)  # Blue to Purple
+        ]
+        
+        # Flatten all colors
         rainbow_colors = []
-        # Red to Orange
-        rainbow_colors.extend(list(range(196, 208)))
-        # Orange to Yellow
-        rainbow_colors.extend(list(range(208, 227)))
-        # Yellow to Green
-        rainbow_colors.extend(list(range(226, 45, -3)))
-        # Green to Blue
-        rainbow_colors.extend(list(range(46, 87)))
-        # Blue to Purple
-        rainbow_colors.extend(list(range(21, 130, 2)))
+        for segment_colors, _ in rainbow_segments:
+            rainbow_colors.extend(segment_colors)
         
         if not rainbow_colors:
             rainbow_colors = list(range(196, 231))
         
-        color_index = int((position / total_positions) * len(rainbow_colors)) % len(rainbow_colors)
+        # Very slow progression through the rainbow
+        color_index = int((position / total_positions) * len(rainbow_colors))
+        color_index = color_index % len(rainbow_colors)
         return f"\033[38;5;{rainbow_colors[color_index]}m"
     else:
         # Smooth gradient through the theme's range
@@ -228,9 +254,8 @@ def get_gradient_color(position, total_positions, start_pos=0):
         if len(gradient_range) == 0:
             return f"\033[38;5;{55}m"
         
-        # Adjust position to avoid abrupt changes
-        adjusted_pos = position + start_pos
-        exact_index = (adjusted_pos / (total_positions + start_pos)) * (len(gradient_range) - 1)
+        # Ensure we use the full gradient range
+        exact_index = (position / max(total_positions, 1)) * (len(gradient_range) - 1)
         color_index = min(int(exact_index), len(gradient_range) - 1)
         return f"\033[38;5;{gradient_range[color_index]}m"
 
@@ -403,9 +428,10 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
     except Exception:
         return False
 
-def clear_screen():
-    """Clear the entire screen"""
-    os.system('cls' if os.name == 'nt' else 'clear')
+def clear_console_keep_ascii():
+    """Clear console but keep ASCII art visible"""
+    # Move cursor up and clear from cursor to end of screen
+    print("\033[2J\033[H")  # Clear screen and move to home position
 
 def display_gradient_ascii_header_only():
     """Display only the header (ASCII art and made by text)"""
@@ -481,7 +507,7 @@ def display_gradient_ascii():
 
 def display_color_selection():
     """Display color selection menu"""
-    clear_screen()
+    clear_console_keep_ascii()
     display_gradient_ascii_header_only()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
@@ -498,7 +524,8 @@ def display_color_selection():
                 theme = COLOR_THEMES[key]
                 # Use the theme's actual color
                 if theme.get("rainbow"):
-                    color_code = "\033[38;5;196m"  # Red for rainbow
+                    # Show first rainbow color
+                    color_code = "\033[38;5;196m"  # Red
                 else:
                     mid_color = theme["gradient_range"][len(theme["gradient_range"]) // 2]
                     color_code = f"\033[38;5;{mid_color}m"
@@ -511,7 +538,7 @@ def display_color_selection():
 
 def display_options_grid():
     """Display options menu"""
-    clear_screen()
+    clear_console_keep_ascii()
     display_gradient_ascii_header_only()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}\n")
@@ -533,12 +560,12 @@ def validate_license_key():
     user_key = input().strip()
     
     if not user_key:
-        clear_screen()
+        clear_console_keep_ascii()
         display_gradient_ascii_header_only()
         print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}")
         return False, ""
     
-    clear_screen()
+    clear_console_keep_ascii()
     display_gradient_ascii_header_only()
     print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}")
     time.sleep(1)
@@ -548,7 +575,7 @@ def validate_license_key():
         licenses = fetch_license_data()
         
         if not licenses:
-            clear_screen()
+            clear_console_keep_ascii()
             display_gradient_ascii_header_only()
             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
             return False, ""
@@ -566,7 +593,7 @@ def validate_license_key():
                 
                 if not stored_hwid:
                     # First time activation
-                    clear_screen()
+                    clear_console_keep_ascii()
                     display_gradient_ascii_header_only()
                     print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
                     
@@ -596,7 +623,7 @@ def validate_license_key():
                 else:
                     # Check HWID match
                     if stored_hwid == current_hwid:
-                        clear_screen()
+                        clear_console_keep_ascii()
                         display_gradient_ascii_header_only()
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
                         if user_id and not os.path.exists("ID.txt"):
@@ -604,7 +631,7 @@ def validate_license_key():
                         time.sleep(1)
                         return True, user_key
                     else:
-                        clear_screen()
+                        clear_console_keep_ascii()
                         display_gradient_ascii_header_only()
                         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
                         print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Your HWID: {current_hwid[:16]}...{Style.RESET_ALL}")
@@ -612,7 +639,7 @@ def validate_license_key():
                         print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv{Style.RESET_ALL}")
                         
                         for i in range(10, 0, -1):
-                            clear_screen()
+                            clear_console_keep_ascii()
                             display_gradient_ascii_header_only()
                             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
                             print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
@@ -620,13 +647,13 @@ def validate_license_key():
                         return False, ""
         
         if not license_found:
-            clear_screen()
+            clear_console_keep_ascii()
             display_gradient_ascii_header_only()
             print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}")
             
             for i in range(3, 0, -1):
-                clear_screen()
+                clear_console_keep_ascii()
                 display_gradient_ascii_header_only()
                 print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
                 print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
@@ -635,7 +662,7 @@ def validate_license_key():
             return False, ""
             
     except Exception as e:
-        clear_screen()
+        clear_console_keep_ascii()
         display_gradient_ascii_header_only()
         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
         return False, ""
@@ -645,7 +672,7 @@ def validate_license_key():
 def main():
     global current_theme
     
-    clear_screen()
+    clear_console_keep_ascii()
     display_gradient_ascii()
     
     valid_license, license_key = validate_license_key()
@@ -662,18 +689,18 @@ def main():
             color_choice = display_color_selection()
             if color_choice in COLOR_THEMES:
                 current_theme = COLOR_THEMES[color_choice]
-                clear_screen()
+                clear_console_keep_ascii()
                 display_gradient_ascii_header_only()
                 print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}")
             else:
-                clear_screen()
+                clear_console_keep_ascii()
                 display_gradient_ascii_header_only()
                 print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
         elif choice == "2":
             # Generate ID
-            clear_screen()
+            clear_console_keep_ascii()
             display_gradient_ascii_header_only()
             print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}")
             
@@ -696,14 +723,14 @@ def main():
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
         elif choice == "3" or choice == "exit":
-            clear_screen()
+            clear_console_keep_ascii()
             display_gradient_ascii_header_only()
             print(f"\n{Fore.WHITE}[{get_color('light')}-{Fore.WHITE}]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}")
             time.sleep(1)
             sys.exit(0)
             
         else:
-            clear_screen()
+            clear_console_keep_ascii()
             display_gradient_ascii_header_only()
             print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
@@ -712,7 +739,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        clear_screen()
+        clear_console_keep_ascii()
         display_gradient_ascii_header_only()
         print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
         sys.exit(0)
