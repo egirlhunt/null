@@ -29,6 +29,14 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
+def evp_bytes_to_key(password, salt, key_len=32, iv_len=16):
+    """OpenSSL EVP_BytesToKey compatible key derivation"""
+    d = d_i = b''
+    while len(d) < key_len + iv_len:
+        d_i = hashlib.md5(d_i + password + salt).digest()
+        d += d_i
+    return d[:key_len], d[key_len:key_len+iv_len]
+
 def decrypt_aes_openssl(encrypted_text, passphrase):
     """Decrypt AES-256-CBC encrypted text (OpenSSL compatible)"""
     try:
@@ -37,54 +45,31 @@ def decrypt_aes_openssl(encrypted_text, passphrase):
         
         # Check for "Salted__" prefix
         if encrypted_data[:8] != b'Salted__':
-            raise ValueError("Invalid encrypted data: missing 'Salted__' prefix")
+            return ""
         
         # Extract salt (8 bytes after "Salted__")
         salt = encrypted_data[8:16]
         ciphertext = encrypted_data[16:]
         
         # Derive key and IV using OpenSSL's EVP_BytesToKey
-        key = iv = b''
-        digest = b''
-        
-        while len(key) < 32 or len(iv) < 16:
-            md5 = hashlib.md5()
-            if digest:
-                md5.update(digest)
-            md5.update(passphrase.encode('utf-8'))
-            md5.update(salt)
-            digest = md5.digest()
-            
-            if len(key) < 32:
-                key += digest
-            if len(iv) < 16 and len(key) >= 32:
-                iv += digest
-        
-        key = key[:32]
-        iv = iv[:16]
+        password = passphrase.encode('utf-8')
+        key, iv = evp_bytes_to_key(password, salt, 32, 16)
         
         # Decrypt
         cipher = AES.new(key, AES.MODE_CBC, iv)
         decrypted = cipher.decrypt(ciphertext)
         
-        # Remove padding
-        padding_length = decrypted[-1]
-        decrypted = decrypted[:-padding_length]
+        # Remove PKCS7 padding
+        plaintext = unpad(decrypted, AES.block_size)
         
-        return decrypted.decode('utf-8')
+        return plaintext.decode('utf-8')
         
-    except Exception as e:
-        print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Decryption error: {str(e)}")
-        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Encrypted data length: {len(encrypted_data) if 'encrypted_data' in locals() else 'N/A'}")
-        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Salt length: {len(salt) if 'salt' in locals() else 'N/A'}")
-        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Ciphertext length: {len(ciphertext) if 'ciphertext' in locals() else 'N/A'}")
+    except Exception:
         return ""
 
 def get_github_token():
     """Get decrypted GitHub token"""
     token = decrypt_aes_openssl(ENCRYPTED_GITHUB_TOKEN, TOKEN_PASSPHRASE)
-    if token:
-        print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}GitHub token decrypted successfully{Style.RESET_ALL}")
     return token
 
 def get_webhook_url():
@@ -109,15 +94,6 @@ def get_hwid():
             except:
                 pass
         
-        # Get processor info
-        if os.name == 'nt':
-            import subprocess
-            try:
-                cpu_info = subprocess.check_output('wmic cpu get ProcessorId', shell=True).decode().strip()
-                hwid_parts.append(cpu_info.split('\n')[-1].strip())
-            except:
-                pass
-        
         # Create hash from all parts
         hwid_string = '-'.join(hwid_parts)
         return hashlib.sha256(hwid_string.encode()).hexdigest()[:32]
@@ -135,8 +111,9 @@ def fetch_license_data():
         
         print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to private database...{Style.RESET_ALL}")
         
+        # FIXED: Use Bearer token format
         headers = {
-            "Authorization": f"token {github_token}",
+            "Authorization": f"Bearer {github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
         
@@ -150,17 +127,13 @@ def fetch_license_data():
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}Found {len(licenses)} licenses in database{Style.RESET_ALL}")
             return licenses
         elif response.status_code == 404:
-            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}File not found: {GITHUB_API_URL}{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure keys.json exists in the repository{Style.RESET_ALL}")
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}File not found{Style.RESET_ALL}")
         elif response.status_code == 401:
-            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Authentication failed (401){Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Check if GitHub token is valid and has repo access{Style.RESET_ALL}")
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Authentication failed{Style.RESET_ALL}")
         elif response.status_code == 403:
-            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Access forbidden (403){Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Token may not have access to private repository{Style.RESET_ALL}")
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Access forbidden{Style.RESET_ALL}")
         else:
             print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database connection failed: {response.status_code}{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Response: {response.text[:100]}...{Style.RESET_ALL}")
             
     except Exception as e:
         print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
@@ -177,7 +150,7 @@ def update_license_data(license_key, new_hwid):
         
         # Get current file info
         headers = {
-            "Authorization": f"token {github_token}",
+            "Authorization": f"Bearer {github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
         
@@ -229,7 +202,6 @@ def send_webhook(license_key, hwid):
     try:
         webhook_url = get_webhook_url()
         if not webhook_url:
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Failed to decrypt webhook URL{Style.RESET_ALL}")
             return
         
         payload = {
@@ -245,9 +217,9 @@ def send_webhook(license_key, hwid):
         }
         response = requests.post(webhook_url, json=payload, timeout=5)
         if response.status_code in [200, 204]:
-            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Registration logged to webhook{Style.RESET_ALL}")
-    except Exception as e:
-        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Webhook error: {e}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Registration logged{Style.RESET_ALL}")
+    except Exception:
+        pass
 
 def clear_screen_preserve_header():
     """Clear screen but preserve the header"""
@@ -329,6 +301,7 @@ def display_options_grid():
     """Display options in a box-like grid format"""
     clear_screen_preserve_header()
     
+    # FIXED: All rows are properly formatted as lists
     options = [
         ["[1] Start Tool", "[2] Settings", "[3] Key Manager"],
         ["[4] Check HWID", "[5] Help", "[6] About"],
@@ -468,7 +441,7 @@ def main():
             input(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
         elif choice == "3":
-            print(f"\n{Fore.GREEN}[+]{Style.RESETALL} {Fore.GREEN}Key Manager{Style.RESET_ALL}")
+            print(f"\n{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Key Manager{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connected to private GitHub database{Style.RESET_ALL}")
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}Repository: egirlhunt/nulllkeys{Style.RESET_ALL}")
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}File: keys.json{Style.RESET_ALL}")
