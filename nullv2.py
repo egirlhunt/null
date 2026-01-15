@@ -7,29 +7,58 @@ import hashlib
 import uuid
 import requests
 import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 from colorama import init, Fore, Style
 
 init(autoreset=True)
 
+# Encryption settings
+PASSPHRASE = "fdfac521-be53-4ed5-b7a0-47606a2f3821"
+
+# Encrypted tokens
+ENCRYPTED_GITHUB_TOKEN = "U2FsdGVkX1+sb+WhlbvskKQEcmA7M/zl91awuHfgDt7FOmO8cBHp7kl1qgRKm0j4UR/8VaO0OUA6YqschJEsVHPxinmIgU9DsXsd1S7a//DYAu2H6ruBIMDDdx3GiuW0Gw7A7l0n4+vbAg1y8kTVBg=="
+ENCRYPTED_WEBHOOK = "U2FsdGVkX1+Nw4U/zl83/gKNEByPtf6hHZCyga+N6cKvQZNTQgo9fp4UjeajxHOySDCuZhv6PbgzS+VtCTMzE6ULKXqHChvUSVKiQRxjINzWrVIyWBMs2B3QwUZYflKrEJYj25kQ4wCcLaRIMJUmuoKpmpmKy+5oLz5Bi9FjYzOv8ftNm7Ye41t6Sy87Prwz"
+
 # GitHub repository information
-GITHUB_TOKEN = "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"
 REPO_OWNER = "egirlhunt"
 REPO_NAME = "nulllkeys"
 FILE_PATH = "keys.json"
 
-# FIXED: Correct GitHub URLs
-GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/refs/heads/main/{FILE_PATH}"
+# GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-# Alternative raw URL (GitHub Pages style)
-GITHUB_RAW_URL_ALT = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{FILE_PATH}?raw=true"
+def decrypt_aes(encrypted_text, passphrase):
+    """Decrypt AES-256-CBC encrypted text"""
+    try:
+        # Decode base64
+        encrypted_data = base64.b64decode(encrypted_text)
+        
+        # Extract salt and ciphertext (first 8 bytes is "Salted__", next 8 bytes is salt)
+        salt = encrypted_data[8:16]
+        ciphertext = encrypted_data[16:]
+        
+        # Derive key and IV using OpenSSL's EVP_BytesToKey
+        key_iv = hashlib.md5(passphrase.encode() + salt).digest()
+        key_iv += hashlib.md5(key_iv + passphrase.encode() + salt).digest()
+        key = key_iv[:32]
+        iv = key_iv[32:48]
+        
+        # Decrypt
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        decrypted = unpad(cipher.decrypt(ciphertext), AES.block_size)
+        return decrypted.decode('utf-8')
+    except Exception as e:
+        print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Decryption error: {e}{Style.RESET_ALL}")
+        return ""
 
-# Webhook URL (encrypted)
-WEBHOOK_KEY = "uekv_encryption_key_2024"
-encrypted_webhook = "".join([chr(ord(c) ^ ord(WEBHOOK_KEY[i % len(WEBHOOK_KEY)])) for i, c in enumerate("https://canary.discord.com/api/webhooks/1461106633919828185/i-PQYIH8Xa99qLXaTjiY_8zIvRTbkAewYWm0Se3c2Dqf8vWzBUxLf7AC7q5lFCU8orbZ")])
+def get_github_token():
+    """Get decrypted GitHub token"""
+    return decrypt_aes(ENCRYPTED_GITHUB_TOKEN, PASSPHRASE)
 
 def get_webhook_url():
-    return "".join([chr(ord(c) ^ ord(WEBHOOK_KEY[i % len(WEBHOOK_KEY)])) for i, c in enumerate(encrypted_webhook)])
+    """Get decrypted webhook URL"""
+    return decrypt_aes(ENCRYPTED_WEBHOOK, PASSPHRASE)
 
 def get_hwid():
     """Generate a unique hardware ID"""
@@ -66,57 +95,56 @@ def get_hwid():
         return str(uuid.getnode())
 
 def fetch_license_data():
-    """Fetch and parse license data from GitHub database"""
-    urls_to_try = [
-        GITHUB_RAW_URL,
-        GITHUB_RAW_URL_ALT,
-        f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/master/{FILE_PATH}",
-        f"https://cdn.jsdelivr.net/gh/{REPO_OWNER}/{REPO_NAME}/{FILE_PATH}"
-    ]
+    """Fetch and parse license data from private GitHub repository"""
+    try:
+        github_token = get_github_token()
+        if not github_token:
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Failed to decrypt GitHub token{Style.RESET_ALL}")
+            return []
+        
+        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to private database...{Style.RESET_ALL}")
+        
+        headers = {
+            "Authorization": f"token {github_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        response = requests.get(GITHUB_API_URL, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            file_info = response.json()
+            content = base64.b64decode(file_info["content"]).decode('utf-8')
+            licenses = json.loads(content)
+            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Private database connected successfully{Style.RESET_ALL}")
+            return licenses
+        elif response.status_code == 404:
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}File not found: {GITHUB_API_URL}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure keys.json exists in the repository{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database connection failed: {response.status_code}{Style.RESET_ALL}")
+            
+    except Exception as e:
+        print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
     
-    for url in urls_to_try:
-        try:
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connecting to database ({url.split('/')[2]})...{Style.RESET_ALL}")
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.text.strip()
-                # Try to parse as JSON
-                try:
-                    licenses = json.loads(data)
-                    print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Database connected successfully{Style.RESET_ALL}")
-                    return licenses
-                except json.JSONDecodeError as e:
-                    print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database format error: {e}{Style.RESET_ALL}")
-                    # Try to fix common JSON issues
-                    data = data.strip()
-                    if data.startswith('{') and data.endswith('}'):
-                        data = '[' + data + ']'
-                    try:
-                        return json.loads(data)
-                    except:
-                        continue
-            else:
-                print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Failed with {response.status_code}, trying next URL...{Style.RESET_ALL}")
-        except Exception as e:
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Error with {url.split('/')[2]}: {e}{Style.RESET_ALL}")
-            continue
-    
-    print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}All database connections failed{Style.RESET_ALL}")
     return []
 
 def update_license_data(license_key, new_hwid):
-    """Update license data in GitHub database"""
+    """Update license data in private GitHub repository"""
     try:
+        github_token = get_github_token()
+        if not github_token:
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Failed to decrypt GitHub token{Style.RESET_ALL}")
+            return False
+        
         # Get current file info
         headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
+            "Authorization": f"token {github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
         
         response = requests.get(GITHUB_API_URL, headers=headers, timeout=10)
         if response.status_code != 200:
             print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Failed to access database: {response.status_code}{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure the file exists at: {GITHUB_API_URL}{Style.RESET_ALL}")
             return False
         
         file_info = response.json()
@@ -147,7 +175,7 @@ def update_license_data(license_key, new_hwid):
         update_response = requests.put(GITHUB_API_URL, headers=headers, json=update_data, timeout=10)
         
         if update_response.status_code in [200, 201]:
-            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Database updated successfully{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Private database updated successfully{Style.RESET_ALL}")
             return True
         else:
             print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database update failed: {update_response.status_code}{Style.RESET_ALL}")
@@ -161,6 +189,10 @@ def send_webhook(license_key, hwid):
     """Send registration to webhook"""
     try:
         webhook_url = get_webhook_url()
+        if not webhook_url:
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Failed to decrypt webhook URL{Style.RESET_ALL}")
+            return
+        
         payload = {
             "embeds": [{
                 "title": "NEW REGISTRATION",
@@ -172,10 +204,11 @@ def send_webhook(license_key, hwid):
                 "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
             }]
         }
-        requests.post(webhook_url, json=payload, timeout=5)
-        print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Registration logged{Style.RESET_ALL}")
-    except:
-        pass
+        response = requests.post(webhook_url, json=payload, timeout=5)
+        if response.status_code in [200, 204]:
+            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Registration logged to webhook{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Webhook error: {e}{Style.RESET_ALL}")
 
 def clear_screen_preserve_header():
     """Clear screen but preserve the header"""
@@ -296,23 +329,23 @@ def display_options_grid():
     return input(f"\n{Fore.RED}[+]{Style.RESET_ALL} {Fore.WHITE}Select > {Style.RESET_ALL}")
 
 def validate_license_key():
-    """Validate license key against GitHub database"""
+    """Validate license key against private GitHub database"""
     user_key = input().strip()
     
     if not user_key:
         print(f"\n{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}")
         return False
     
-    print(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking database...{Style.RESET_ALL}")
+    print(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}")
     time.sleep(1)
     
     try:
-        # Fetch license data from GitHub database
+        # Fetch license data from private GitHub database
         licenses = fetch_license_data()
         
         if not licenses:
-            print(f"{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Database empty or unavailable{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Check if keys.json exists at: https://github.com/egirlhunt/nulllkeys{Style.RESET_ALL}")
+            print(f"{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Check GitHub token permissions and repository access{Style.RESET_ALL}")
             return False
         
         # Find the license key
@@ -332,7 +365,7 @@ def validate_license_key():
                     send_webhook(user_key, current_hwid)
                     
                     # Update GitHub database with HWID
-                    print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating database...{Style.RESET_ALL}")
+                    print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database...{Style.RESET_ALL}")
                     if update_license_data(user_key, current_hwid):
                         print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
                         time.sleep(2)
@@ -358,7 +391,7 @@ def validate_license_key():
                         return False
         
         if not license_found:
-            print(f"\n{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}License not found in database!{Style.RESET_ALL}")
+            print(f"\n{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
             print(f"{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}")
             
             for i in range(3, 0, -1):
@@ -398,7 +431,7 @@ def main():
             
         elif choice == "3":
             print(f"\n{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Key Manager{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connected to GitHub database{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connected to private GitHub database{Style.RESET_ALL}")
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}Repository: egirlhunt/nulllkeys{Style.RESET_ALL}")
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}File: keys.json{Style.RESET_ALL}")
             input(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
