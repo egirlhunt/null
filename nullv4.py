@@ -822,8 +822,8 @@ def display_nuking_menu():
 async def run_nuker(token: str, coro):
     intents = discord.Intents.default()
     intents.members = True
-    intents.message_content = True
-
+    intents.messages = True  # FIXED: Changed from message_content to messages
+    
     bot = commands.Bot(command_prefix=".", intents=intents, help_command=None)
 
     @bot.event
