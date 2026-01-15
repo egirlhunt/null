@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys
 import time
 import os
@@ -555,18 +554,10 @@ def create_option_row(left_option, right_option=""):
     width = get_console_width()
     
     if not right_option:
-        # Single option - center it
-        left_parts = left_option.split("]", 1)
-        if len(left_parts) == 2:
-            left_bracket = left_parts[0] + "]"
-            left_text = left_parts[1].strip()
-            # Center the bracket, then add text
-            bracket_center = left_bracket.center(width // 2)
-            full_option = bracket_center + " " + left_text
-            return full_option
+        # Single option - center the entire option
         return left_option.center(width)
     
-    # Two options - calculate perfect spacing
+    # Two options - calculate perfect spacing with brackets aligned
     left_parts = left_option.split("]", 1)
     right_parts = right_option.split("]", 1)
     
@@ -576,16 +567,28 @@ def create_option_row(left_option, right_option=""):
         right_bracket = right_parts[0] + "]"
         right_text = right_parts[1].strip()
         
-        # Center left bracket in first half
-        left_center = left_bracket.center(width // 4)
-        left_full = left_center + " " + left_text
+        # Fixed spacing: brackets always at same position
+        bracket_width = 4  # [X] is 3 characters + 1 space
         
-        # Center right bracket in second half
-        right_center = right_bracket.center(width // 4)
-        right_full = right_center + " " + right_text
+        # Calculate positions for brackets
+        left_bracket_pos = width // 4 - bracket_width // 2
+        right_bracket_pos = 3 * width // 4 - bracket_width // 2
         
-        # Combine with spacing
-        return left_full + "   " + right_full
+        # Build the row
+        row = ""
+        
+        # Left side
+        row += " " * left_bracket_pos + left_bracket + " " + left_text
+        
+        # Middle padding
+        middle_start = left_bracket_pos + len(left_bracket) + len(left_text) + 1
+        middle_end = right_bracket_pos
+        row += " " * (middle_end - middle_start)
+        
+        # Right side
+        row += right_bracket + " " + right_text
+        
+        return row
     
     return (left_option + "   " + right_option).center(width)
 
@@ -630,7 +633,7 @@ def display_color_selection():
             
             right_option = f"{right_color}[{right_key}]{Style.RESET_ALL}{Fore.WHITE} {right_theme['name']}"
         
-        # Print perfectly centered row
+        # Print perfectly centered row with symmetrical brackets
         print(create_option_row(left_option, right_option))
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
@@ -645,12 +648,12 @@ def display_main_menu():
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Menu options
+    # Menu options with symmetrical brackets
     row1_left = f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Change Color"
     row1_right = f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Generate ID"
     row2_single = f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Exit"
     
-    # Print perfectly centered rows
+    # Print rows with symmetrical brackets
     print(create_option_row(row1_left, row1_right))
     print(create_option_row(row2_single))
     
