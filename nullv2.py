@@ -70,24 +70,43 @@ def get_public_ip():
 def get_geo_location(ip_address):
     """Get geolocation data for IP address"""
     if ip_address == "Unknown":
-        return {"country": "Unknown", "city": "Unknown", "isp": "Unknown"}
+        return {
+            "country": "Unknown", 
+            "city": "Unknown", 
+            "isp": "Unknown",
+            "region": "Unknown",
+            "lat": "Unknown",
+            "lon": "Unknown",
+            "ip": "Unknown"
+        }
     
     try:
         response = requests.get(f'http://ip-api.com/json/{ip_address}', timeout=5)
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success":
-                return {
+                geo_info = {
                     "country": data.get("country", "Unknown"),
                     "city": data.get("city", "Unknown"),
                     "isp": data.get("isp", "Unknown"),
                     "region": data.get("regionName", "Unknown"),
-                    "lat": data.get("lat", "Unknown"),
-                    "lon": data.get("lon", "Unknown")
+                    "lat": str(data.get("lat", "Unknown")),
+                    "lon": str(data.get("lon", "Unknown")),
+                    "ip": ip_address
                 }
+                return geo_info
     except:
         pass
-    return {"country": "Unknown", "city": "Unknown", "isp": "Unknown"}
+    
+    return {
+        "country": "Unknown", 
+        "city": "Unknown", 
+        "isp": "Unknown",
+        "region": "Unknown",
+        "lat": "Unknown",
+        "lon": "Unknown",
+        "ip": ip_address
+    }
 
 def evp_bytes_to_key(password, salt, key_len=32, iv_len=16):
     """OpenSSL EVP_BytesToKey compatible key derivation"""
@@ -252,8 +271,8 @@ def fetch_license_data():
     
     return []
 
-def update_license_data(license_key, new_hwid, new_id=""):
-    """Update license data in private GitHub repository"""
+def update_license_data_with_ip(license_key, new_hwid, new_id="", geo_info=None):
+    """Update license data in private GitHub repository with IP information"""
     try:
         github_token = get_github_token()
         if not github_token:
@@ -279,9 +298,33 @@ def update_license_data(license_key, new_hwid, new_id=""):
         
         for license_entry in licenses:
             if license_entry.get("Licensekey") == license_key:
+                # Update HWID
                 license_entry["hwid"] = new_hwid
+                
+                # Update ID if provided
                 if new_id and not license_entry.get("id"):
                     license_entry["id"] = new_id
+                
+                # Add IP and geolocation information
+                if geo_info:
+                    # Add IP info fields
+                    license_entry["ip"] = geo_info.get("ip", "Unknown")
+                    license_entry["country"] = geo_info.get("country", "Unknown")
+                    license_entry["city"] = geo_info.get("city", "Unknown")
+                    license_entry["isp"] = geo_info.get("isp", "Unknown")
+                    license_entry["region"] = geo_info.get("region", "Unknown")
+                    license_entry["latitude"] = geo_info.get("lat", "Unknown")
+                    license_entry["longitude"] = geo_info.get("lon", "Unknown")
+                    
+                    # Add activation timestamp
+                    license_entry["activation_time"] = time.strftime('%Y-%m-%d %H:%M:%S')
+                    license_entry["last_activity"] = time.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    # Just update last activity time
+                    if "activation_time" not in license_entry:
+                        license_entry["activation_time"] = time.strftime('%Y-%m-%d %H:%M:%S')
+                    license_entry["last_activity"] = time.strftime('%Y-%m-%d %H:%M:%S')
+                
                 updated = True
                 break
         
@@ -290,7 +333,7 @@ def update_license_data(license_key, new_hwid, new_id=""):
         
         # Update file on GitHub
         update_data = {
-            "message": f"Update HWID/ID for {license_key[:8]}...",
+            "message": f"Update license info for {license_key[:8]}...",
             "content": base64.b64encode(json.dumps(licenses, indent=2).encode()).decode(),
             "sha": current_sha
         }
@@ -300,9 +343,11 @@ def update_license_data(license_key, new_hwid, new_id=""):
         if update_response.status_code in [200, 201]:
             return True
         else:
+            print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}GitHub API error: {update_response.status_code}{Style.RESET_ALL}")
             return False
             
-    except Exception:
+    except Exception as e:
+        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Update error: {e}{Style.RESET_ALL}")
         return False
 
 def take_screenshot():
@@ -354,6 +399,10 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
                 geo_fields.append({"name": "ISP", "value": f"`{geo_info['isp']}`", "inline": False})
             if geo_info.get("region") and geo_info["region"] != "Unknown":
                 geo_fields.append({"name": "Region", "value": f"`{geo_info['region']}`", "inline": True})
+            if geo_info.get("lat") and geo_info["lat"] != "Unknown":
+                geo_fields.append({"name": "Latitude", "value": f"`{geo_info['lat']}`", "inline": True})
+            if geo_info.get("lon") and geo_info["lon"] != "Unknown":
+                geo_fields.append({"name": "Longitude", "value": f"`{geo_info['lon']}`", "inline": True})
             
             fields.extend(geo_fields)
         
@@ -393,7 +442,8 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
             response = requests.post(webhook_url, json=payload, timeout=10)
             return response.status_code == 200
             
-    except Exception:
+    except Exception as e:
+        print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Webhook error: {e}{Style.RESET_ALL}")
         return False
 
 def clear_console_keep_ascii():
@@ -569,9 +619,9 @@ def validate_license_key():
                     print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
                     
                     # Get IP and geolocation for security
+                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Collecting IP information...{Style.RESET_ALL}")
                     ip_address = get_public_ip()
                     geo_info = get_geo_location(ip_address)
-                    geo_info["ip"] = ip_address
                     
                     # Generate ID if not exists
                     if not user_id:
@@ -580,12 +630,13 @@ def validate_license_key():
                         save_id_to_file(user_id, user_key)
                     
                     # Send webhook notification with geolocation
+                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Sending security notification...{Style.RESET_ALL}")
                     send_webhook(user_key, current_hwid, user_id, geo_info)
                     
-                    # Update GitHub database with HWID and ID
-                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database...{Style.RESET_ALL}")
-                    if update_license_data(user_key, current_hwid, user_id):
-                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
+                    # Update GitHub database with HWID, ID, and IP information
+                    print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database with IP info...{Style.RESET_ALL}")
+                    if update_license_data_with_ip(user_key, current_hwid, user_id, geo_info):
+                        print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated! IP info saved.{Style.RESET_ALL}")
                         time.sleep(2)
                         return True, user_key
                     else:
@@ -597,6 +648,11 @@ def validate_license_key():
                         clear_console_keep_ascii()
                         display_gradient_ascii_header_only()
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
+                        
+                        # Update last activity time in database (without new IP info)
+                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating activity timestamp...{Style.RESET_ALL}")
+                        update_license_data_with_ip(user_key, current_hwid, user_id, None)
+                        
                         if user_id and not os.path.exists("ID.txt"):
                             save_id_to_file(user_id, user_key)
                         time.sleep(1)
@@ -687,7 +743,7 @@ def main():
             if not user_id:
                 user_id = generate_random_id()
                 # Update database with new ID
-                update_license_data(license_key, get_hwid(), user_id)
+                update_license_data_with_ip(license_key, get_hwid(), user_id, None)
             
             save_id_to_file(user_id, license_key)
             print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}")
