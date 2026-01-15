@@ -46,17 +46,11 @@ COLOR_THEMES = {
     "10": {"name": "Rainbow", "rainbow": True}
 }
 
-# Text alignment formats
-ALIGNMENT_FORMATS = {
-    "1": {"name": "Left", "align": "left"},
-    "2": {"name": "Center", "align": "center"},
-    "3": {"name": "Right", "align": "right"}
-}
-
 # Set default theme to Purple (option 7)
 current_theme = COLOR_THEMES["7"]
-# Set default alignment to Center
-current_alignment = ALIGNMENT_FORMATS["2"]
+
+# License key storage file
+LICENSE_FILE = "license.key"
 
 def hsv_to_ansi(h, s=1.0, v=1.0):
     """Convert HSV to smooth ANSI 256 color"""
@@ -255,39 +249,39 @@ def get_gradient_color(position, total_positions):
     ansi = hsv_to_ansi(hue, 0.9, value)
     return f"\033[38;5;{ansi}m"
 
-def align_text(text, width=50):
-    """Align text based on current alignment setting"""
-    if current_alignment["align"] == "center":
-        return text.center(width)
-    elif current_alignment["align"] == "right":
-        return text.rjust(width)
-    else:  # left
-        return text.ljust(width)
+def save_license_key(license_key):
+    """Save license key to file"""
+    try:
+        with open(LICENSE_FILE, "w") as f:
+            f.write(license_key)
+        return True
+    except:
+        return False
 
-def clear_console():
-    """Clear console"""
-    os.system('cls' if os.name == 'nt' else 'clear')
+def load_license_key():
+    """Load license key from file"""
+    try:
+        if os.path.exists(LICENSE_FILE):
+            with open(LICENSE_FILE, "r") as f:
+                return f.read().strip()
+    except:
+        pass
+    return ""
 
-def display_header():
-    """Display header with title"""
+def ask_save_license():
+    """Ask user if they want to save the license key"""
     clear_console()
+    display_ascii_art()
     
-    # Title with alignment
-    title = "NULLKEYS TOOL"
-    separator = "─" * 50
+    print(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Do you want to save your license key for next time?{Style.RESET_ALL}")
+    print(f"\n{get_color('light')}[1]{Style.RESET_ALL} Yes - Save and auto-load next time")
+    print(f"{get_color('light')}[2]{Style.RESET_ALL} No - Ask every time")
     
-    # Apply gradient to title
-    title_color = get_gradient_color(0, 3)
-    separator_color = get_gradient_color(1, 3)
-    made_by_color = get_gradient_color(2, 3)
+    choice = input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
     
-    print(f"\n{title_color}{align_text(title)}{Style.RESET_ALL}")
-    print(f"{separator_color}{align_text(separator)}{Style.RESET_ALL}")
-    
-    # Made by text
-    made_by_text = "made by @uekv on discord"
-    print(f"{made_by_color}{align_text(made_by_text)}{Style.RESET_ALL}")
-    print(f"{separator_color}{align_text(separator)}{Style.RESET_ALL}")
+    if choice == "1":
+        return True
+    return False
 
 def fetch_license_data():
     """Fetch and parse license data from private GitHub repository"""
@@ -486,9 +480,44 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
     except Exception:
         return False
 
+def clear_console():
+    """Clear console"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def display_ascii_art():
+    """Display ASCII art"""
+    ascii_text = [
+        " ███▄    █  █    ██  ██▓     ██▓    ",
+        " ██ ▀█   █  ██  ▓██▒▓██▒    ▓██▒    ",
+        "▓██  ▀█ ██▒▓██  ▒██░▒██░    ▒██░    ",
+        "▓██▒  ▐▌██▒▓▓█  ░██░▒██░    ▒██░    ",
+        "▒██░   ▓██░▒▒█████▓ ░██████▒░██████▒",
+        "░ ▒░   ▒ ▒ ░▒▓▒ ▒ ▒ ░ ▒░▓  ░░ ▒░▓  ░",
+        "░ ░░   ░ ▒░░░▒░ ░ ░ ░ ░ ▒  ░░ ░ ▒  ░",
+        "   ░   ░ ░  ░░░ ░ ░   ░ ░     ░ ░   ",
+        "         ░    ░         ░  ░    ░  ░",
+        "                                    "
+    ]
+    
+    # Display with gradient
+    for i, line in enumerate(ascii_text):
+        color = get_gradient_color(i, len(ascii_text))
+        print(f"{color}{line}")
+    
+    # Made by text
+    made_by_text = "made by @uekv on discord"
+    color = get_gradient_color(len(ascii_text) + 1, len(ascii_text) + 2)
+    print(f"\n{color}{made_by_text}{Style.RESET_ALL}")
+    
+    # Separator
+    separator = "─" * 50
+    sep_color = get_gradient_color(len(ascii_text) + 2, len(ascii_text) + 3)
+    print(f"{sep_color}{separator}{Style.RESET_ALL}")
+
 def display_color_selection():
     """Display color selection menu"""
-    display_header()
+    clear_console()
+    display_ascii_art()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
@@ -515,63 +544,60 @@ def display_color_selection():
                     color_code = f"\033[38;5;{mid_color}m"
                     name = theme['name']
                 line += f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:<12}"
-        print(align_text(line.strip()))
+        print(line.rstrip())
     
-    print(f"\n{get_color('medium')}{align_text('─' * 50)}{Style.RESET_ALL}")
-    
-    return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
-
-def display_format_selection():
-    """Display text format selection menu"""
-    display_header()
-    
-    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Text Format Selection{Style.RESET_ALL}\n")
-    
-    # Display format options
-    for key, format_info in ALIGNMENT_FORMATS.items():
-        format_color = get_color('light')
-        print(f"{format_color}[{key}]{Style.RESET_ALL}{Fore.WHITE} {format_info['name']:<10}")
-    
-    print(f"\n{get_color('medium')}{align_text('─' * 50)}{Style.RESET_ALL}")
+    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
 def display_main_menu():
-    """Display main menu"""
-    display_header()
+    """Display main menu with options side by side"""
+    clear_console()
+    display_ascii_art()
     
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Display options with nice spacing
+    # Display options side by side
     options = [
-        f"{get_color('light')}[1]{Style.RESET_ALL} Change Color",
-        f"{get_color('light')}[2]{Style.RESET_ALL} Change Format", 
-        f"{get_color('light')}[3]{Style.RESET_ALL} Generate ID",
-        f"{get_color('light')}[4]{Style.RESET_ALL} Exit"
+        f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", 
+        f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID", 
+        f"{get_color('light')}[3]{Style.RESET_ALL} Exit"
     ]
     
-    for option in options:
-        print(align_text(option))
-    
-    print(f"\n{get_color('medium')}{align_text('─' * 50)}{Style.RESET_ALL}")
+    print("   ".join(options))
+    print(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}")
 
 def display_license_prompt():
     """Display license key prompt"""
-    display_header()
+    clear_console()
+    display_ascii_art()
     return input(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}")
 
-def validate_license_key():
+def validate_license_key(save_license_prompt=False):
     """Validate license key against private GitHub database"""
-    user_key = display_license_prompt()
+    # Check if we have a saved license key
+    saved_key = load_license_key()
+    user_key = ""
+    
+    if saved_key and not save_license_prompt:
+        user_key = saved_key
+        clear_console()
+        display_ascii_art()
+        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Using saved license key...{Style.RESET_ALL}")
+        time.sleep(1)
+    else:
+        user_key = display_license_prompt()
     
     if not user_key:
-        display_header()
+        clear_console()
+        display_ascii_art()
         print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}")
         return False, ""
     
-    display_header()
+    clear_console()
+    display_ascii_art()
     print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}")
     time.sleep(1)
     
@@ -580,7 +606,8 @@ def validate_license_key():
         licenses = fetch_license_data()
         
         if not licenses:
-            display_header()
+            clear_console()
+            display_ascii_art()
             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
             return False, ""
         
@@ -588,6 +615,7 @@ def validate_license_key():
         license_found = False
         current_hwid = get_hwid()
         user_id = ""
+        is_first_activation = False
         
         for license_entry in licenses:
             if license_entry.get("Licensekey") == user_key:
@@ -597,7 +625,9 @@ def validate_license_key():
                 
                 if not stored_hwid:
                     # First time activation
-                    display_header()
+                    is_first_activation = True
+                    clear_console()
+                    display_ascii_art()
                     print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}")
                     
                     # Get IP and geolocation silently
@@ -607,6 +637,7 @@ def validate_license_key():
                     # Generate ID if not exists
                     if not user_id:
                         user_id = generate_random_id()
+                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Creating User ID...{Style.RESET_ALL}")
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}")
                         save_id_to_file(user_id, user_key)
                     
@@ -615,7 +646,14 @@ def validate_license_key():
                     
                     # Update GitHub database with HWID, ID, and IP information
                     if update_license_data_with_ip(user_key, current_hwid, user_id, geo_info):
+                        print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating database...{Style.RESET_ALL}")
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}")
+                        
+                        # Ask if user wants to save the license key (only on first activation)
+                        if is_first_activation and ask_save_license():
+                            if save_license_key(user_key):
+                                print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}License key saved for next time{Style.RESET_ALL}")
+                        
                         time.sleep(2)
                         return True, user_key
                     else:
@@ -624,7 +662,8 @@ def validate_license_key():
                 else:
                     # Check HWID match
                     if stored_hwid == current_hwid:
-                        display_header()
+                        clear_console()
+                        display_ascii_art()
                         print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}")
                         
                         # Update last activity time in database
@@ -635,12 +674,14 @@ def validate_license_key():
                         time.sleep(1)
                         return True, user_key
                     else:
-                        display_header()
+                        clear_console()
+                        display_ascii_art()
                         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
                         print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
                         
                         for i in range(10, 0, -1):
-                            display_header()
+                            clear_console()
+                            display_ascii_art()
                             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}")
                             print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv on discord{Style.RESET_ALL}")
                             print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
@@ -648,12 +689,14 @@ def validate_license_key():
                         return False, ""
         
         if not license_found:
-            display_header()
+            clear_console()
+            display_ascii_art()
             print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
             print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}")
             
             for i in range(3, 0, -1):
-                display_header()
+                clear_console()
+                display_ascii_art()
                 print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}")
                 print(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}")
                 time.sleep(1)
@@ -661,16 +704,22 @@ def validate_license_key():
             return False, ""
             
     except Exception as e:
-        display_header()
+        clear_console()
+        display_ascii_art()
         print(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error{Style.RESET_ALL}")
         return False, ""
     
     return False, ""
 
 def main():
-    global current_theme, current_alignment
+    global current_theme
     
+    # First try with saved license
     valid_license, license_key = validate_license_key()
+    
+    # If not valid, prompt for license entry
+    if not valid_license:
+        valid_license, license_key = validate_license_key(save_license_prompt=True)
     
     if not valid_license:
         sys.exit(1)
@@ -684,29 +733,20 @@ def main():
             color_choice = display_color_selection()
             if color_choice in COLOR_THEMES:
                 current_theme = COLOR_THEMES[color_choice]
-                display_header()
+                clear_console()
+                display_ascii_art()
                 print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}")
             else:
-                display_header()
+                clear_console()
+                display_ascii_art()
                 print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
         elif choice == "2":
-            # Change format
-            format_choice = display_format_selection()
-            if format_choice in ALIGNMENT_FORMATS:
-                current_alignment = ALIGNMENT_FORMATS[format_choice]
-                display_header()
-                print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Text format changed to {current_alignment['name']}{Style.RESET_ALL}")
-            else:
-                display_header()
-                print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid format choice{Style.RESET_ALL}")
-            input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
-            
-        elif choice == "3":
             # Generate ID
-            display_header()
-            print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}")
+            clear_console()
+            display_ascii_art()
+            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Generating new ID...{Style.RESET_ALL}")
             
             # Check if license is still valid
             licenses = fetch_license_data()
@@ -726,22 +766,24 @@ def main():
             print(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
-        elif choice == "4":
-            # Exit
-            display_header()
+        elif choice == "3" or choice == "exit":
+            clear_console()
+            display_ascii_art()
             print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}")
             time.sleep(1)
             sys.exit(0)
             
         else:
-            display_header()
-            print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid option{Style.RESET_ALL}")
+            clear_console()
+            display_ascii_art()
+            print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}")
             input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        display_header()
-        print(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
+        clear_console()
+        display_ascii_art()
+        print(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}")
         sys.exit(0)
