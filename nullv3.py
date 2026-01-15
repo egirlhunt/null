@@ -550,77 +550,122 @@ def display_ascii_art():
     sep_color = get_gradient_color(len(ascii_text) + 2, len(ascii_text) + 3)
     print_color_centered(separator, sep_color)
 
+def create_option_row(left_option, right_option=""):
+    """Create a perfectly centered row with two options"""
+    width = get_console_width()
+    
+    if not right_option:
+        # Single option - center it
+        left_parts = left_option.split("]", 1)
+        if len(left_parts) == 2:
+            left_bracket = left_parts[0] + "]"
+            left_text = left_parts[1].strip()
+            # Center the bracket, then add text
+            bracket_center = left_bracket.center(width // 2)
+            full_option = bracket_center + " " + left_text
+            return full_option
+        return left_option.center(width)
+    
+    # Two options - calculate perfect spacing
+    left_parts = left_option.split("]", 1)
+    right_parts = right_option.split("]", 1)
+    
+    if len(left_parts) == 2 and len(right_parts) == 2:
+        left_bracket = left_parts[0] + "]"
+        left_text = left_parts[1].strip()
+        right_bracket = right_parts[0] + "]"
+        right_text = right_parts[1].strip()
+        
+        # Center left bracket in first half
+        left_center = left_bracket.center(width // 4)
+        left_full = left_center + " " + left_text
+        
+        # Center right bracket in second half
+        right_center = right_bracket.center(width // 4)
+        right_full = right_center + " " + right_text
+        
+        # Combine with spacing
+        return left_full + "   " + right_full
+    
+    return (left_option + "   " + right_option).center(width)
+
 def display_color_selection():
-    """Display color selection menu centered in perfect 2-column layout"""
+    """Display color selection menu with perfectly centered numbers"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}\n")
     
-    # Create perfect 2-column layout with proper spacing
+    # Create perfect 2-column layout with centered brackets
     color_keys = list(COLOR_THEMES.keys())
     
     for i in range(0, len(color_keys), 2):
-        row_options = []
-        for j in range(2):
-            if i + j < len(color_keys):
-                key = color_keys[i + j]
-                theme = COLOR_THEMES[key]
-                # Use the theme's actual color
-                if theme.get("rainbow"):
-                    color_code = "\033[38;5;196m"  # Red for rainbow preview
-                    name = "Rainbow"
-                elif theme.get("grayscale"):
-                    color_code = "\033[38;5;255m"  # White
-                    name = theme['name']
-                else:
-                    mid_color = hsv_to_ansi(theme["hue"], 0.9, 0.75)
-                    color_code = f"\033[38;5;{mid_color}m"
-                    name = theme['name']
-                
-                option_text = f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {name:12}"
-                row_options.append(option_text)
+        left_key = color_keys[i]
+        left_theme = COLOR_THEMES[left_key]
         
-        # Create perfectly centered row with 8 spaces between options
-        row_text = "        ".join(row_options)
-        print_centered(row_text)
+        # Left option color
+        if left_theme.get("rainbow"):
+            left_color = "\033[38;5;196m"  # Red for rainbow preview
+        elif left_theme.get("grayscale"):
+            left_color = "\033[38;5;255m"  # White
+        else:
+            left_hue = hsv_to_ansi(left_theme["hue"], 0.9, 0.75)
+            left_color = f"\033[38;5;{left_hue}m"
+        
+        left_option = f"{left_color}[{left_key}]{Style.RESET_ALL}{Fore.WHITE} {left_theme['name']}"
+        
+        # Right option (if exists)
+        right_option = ""
+        if i + 1 < len(color_keys):
+            right_key = color_keys[i + 1]
+            right_theme = COLOR_THEMES[right_key]
+            
+            # Right option color
+            if right_theme.get("rainbow"):
+                right_color = "\033[38;5;196m"
+            elif right_theme.get("grayscale"):
+                right_color = "\033[38;5;255m"
+            else:
+                right_hue = hsv_to_ansi(right_theme["hue"], 0.9, 0.75)
+                right_color = f"\033[38;5;{right_hue}m"
+            
+            right_option = f"{right_color}[{right_key}]{Style.RESET_ALL}{Fore.WHITE} {right_theme['name']}"
+        
+        # Print perfectly centered row
+        print(create_option_row(left_option, right_option))
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
-    # Center the input prompt on the same line
-    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > "
-    print(prompt.center(get_console_width()), end="")
+    # Input prompt - not centered, cursor stays next to >
+    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > ", end="")
     return input().strip()
 
 def display_main_menu():
-    """Display main menu with perfect 2-column layout"""
+    """Display main menu with perfectly centered numbers"""
     display_ascii_art()
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu{Style.RESET_ALL}\n")
     
-    # Create perfect 2-column layout
-    menu_options = [
-        (f"{get_color('light')}[1]{Style.RESET_ALL} Change Color", f"{get_color('light')}[2]{Style.RESET_ALL} Generate ID"),
-        (f"{get_color('light')}[3]{Style.RESET_ALL} Exit", "")
-    ]
+    # Menu options
+    row1_left = f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Change Color"
+    row1_right = f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Generate ID"
+    row2_single = f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Exit"
     
-    for row in menu_options:
-        row_text = "        ".join([opt for opt in row if opt])  # 8 spaces between options
-        print_centered(row_text)
+    # Print perfectly centered rows
+    print(create_option_row(row1_left, row1_right))
+    print(create_option_row(row2_single))
     
     print_centered(f"\n{get_color('medium')}{'─' * 50}{Style.RESET_ALL}")
     
-    # Center the input prompt on the same line
-    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > "
-    print(prompt.center(get_console_width()), end="")
+    # Input prompt - not centered, cursor stays next to >
+    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > ", end="")
     return input().strip()
 
 def display_license_prompt():
-    """Display license key prompt centered"""
+    """Display license key prompt"""
     display_ascii_art()
     
-    # Center the input prompt on the same line
-    prompt = f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > "
-    print(prompt.center(get_console_width()), end="")
+    # Input prompt - not centered, cursor stays next to >
+    print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > ", end="")
     return input().strip()
 
 def validate_license_key(save_license_prompt=False):
