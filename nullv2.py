@@ -8,16 +8,17 @@ import uuid
 import requests
 import base64
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
+from Crypto.Util.Padding import unpad
 from colorama import init, Fore, Style
 
 init(autoreset=True)
 
 # Encryption settings
-PASSPHRASE = "fdfac521-be53-4ed5-b7a0-47606a2f3821"
+TOKEN_PASSPHRASE = "f0a5baf4-f90b-4800-a407-eb5065382113"
+WEBHOOK_PASSPHRASE = "fdfac521-be53-4ed5-b7a0-47606a2f3821"
 
 # Encrypted tokens
-ENCRYPTED_GITHUB_TOKEN = "U2FsdGVkX1+sb+WhlbvskKQEcmA7M/zl91awuHfgDt7FOmO8cBHp7kl1qgRKm0j4UR/8VaO0OUA6YqschJEsVHPxinmIgU9DsXsd1S7a//DYAu2H6ruBIMDDdx3GiuW0Gw7A7l0n4+vbAg1y8kTVBg=="
+ENCRYPTED_GITHUB_TOKEN = "U2FsdGVkX1+EsNr+p0PWwWMW3udxhDXtt6WfIUaTVivHMUcE6wb4CPWd7spuy3moFuiadjsEQGPzojlv30mjc2sPklc8o4FLKqP/xehTeShOgn7LbTfVoiTIy5Sd7F1FKfjcBUSaOb0Zh6jk3JMYgw=="
 ENCRYPTED_WEBHOOK = "U2FsdGVkX1+Nw4U/zl83/gKNEByPtf6hHZCyga+N6cKvQZNTQgo9fp4UjeajxHOySDCuZhv6PbgzS+VtCTMzE6ULKXqHChvUSVKiQRxjINzWrVIyWBMs2B3QwUZYflKrEJYj25kQ4wCcLaRIMJUmuoKpmpmKy+5oLz5Bi9FjYzOv8ftNm7Ye41t6Sy87Prwz"
 
 # GitHub repository information
@@ -28,37 +29,67 @@ FILE_PATH = "keys.json"
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
 
-def decrypt_aes(encrypted_text, passphrase):
-    """Decrypt AES-256-CBC encrypted text"""
+def decrypt_aes_openssl(encrypted_text, passphrase):
+    """Decrypt AES-256-CBC encrypted text (OpenSSL compatible)"""
     try:
         # Decode base64
         encrypted_data = base64.b64decode(encrypted_text)
         
-        # Extract salt and ciphertext (first 8 bytes is "Salted__", next 8 bytes is salt)
+        # Check for "Salted__" prefix
+        if encrypted_data[:8] != b'Salted__':
+            raise ValueError("Invalid encrypted data: missing 'Salted__' prefix")
+        
+        # Extract salt (8 bytes after "Salted__")
         salt = encrypted_data[8:16]
         ciphertext = encrypted_data[16:]
         
         # Derive key and IV using OpenSSL's EVP_BytesToKey
-        key_iv = hashlib.md5(passphrase.encode() + salt).digest()
-        key_iv += hashlib.md5(key_iv + passphrase.encode() + salt).digest()
-        key = key_iv[:32]
-        iv = key_iv[32:48]
+        key = iv = b''
+        digest = b''
+        
+        while len(key) < 32 or len(iv) < 16:
+            md5 = hashlib.md5()
+            if digest:
+                md5.update(digest)
+            md5.update(passphrase.encode('utf-8'))
+            md5.update(salt)
+            digest = md5.digest()
+            
+            if len(key) < 32:
+                key += digest
+            if len(iv) < 16 and len(key) >= 32:
+                iv += digest
+        
+        key = key[:32]
+        iv = iv[:16]
         
         # Decrypt
         cipher = AES.new(key, AES.MODE_CBC, iv)
-        decrypted = unpad(cipher.decrypt(ciphertext), AES.block_size)
+        decrypted = cipher.decrypt(ciphertext)
+        
+        # Remove padding
+        padding_length = decrypted[-1]
+        decrypted = decrypted[:-padding_length]
+        
         return decrypted.decode('utf-8')
+        
     except Exception as e:
-        print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Decryption error: {e}{Style.RESET_ALL}")
+        print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Decryption error: {str(e)}")
+        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Encrypted data length: {len(encrypted_data) if 'encrypted_data' in locals() else 'N/A'}")
+        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Salt length: {len(salt) if 'salt' in locals() else 'N/A'}")
+        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Ciphertext length: {len(ciphertext) if 'ciphertext' in locals() else 'N/A'}")
         return ""
 
 def get_github_token():
     """Get decrypted GitHub token"""
-    return decrypt_aes(ENCRYPTED_GITHUB_TOKEN, PASSPHRASE)
+    token = decrypt_aes_openssl(ENCRYPTED_GITHUB_TOKEN, TOKEN_PASSPHRASE)
+    if token:
+        print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}GitHub token decrypted successfully{Style.RESET_ALL}")
+    return token
 
 def get_webhook_url():
     """Get decrypted webhook URL"""
-    return decrypt_aes(ENCRYPTED_WEBHOOK, PASSPHRASE)
+    return decrypt_aes_openssl(ENCRYPTED_WEBHOOK, WEBHOOK_PASSPHRASE)
 
 def get_hwid():
     """Generate a unique hardware ID"""
@@ -116,12 +147,20 @@ def fetch_license_data():
             content = base64.b64decode(file_info["content"]).decode('utf-8')
             licenses = json.loads(content)
             print(f"{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Private database connected successfully{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}Found {len(licenses)} licenses in database{Style.RESET_ALL}")
             return licenses
         elif response.status_code == 404:
             print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}File not found: {GITHUB_API_URL}{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure keys.json exists in the repository{Style.RESET_ALL}")
+        elif response.status_code == 401:
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Authentication failed (401){Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Check if GitHub token is valid and has repo access{Style.RESET_ALL}")
+        elif response.status_code == 403:
+            print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Access forbidden (403){Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Token may not have access to private repository{Style.RESET_ALL}")
         else:
             print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database connection failed: {response.status_code}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Response: {response.text[:100]}...{Style.RESET_ALL}")
             
     except Exception as e:
         print(f"{Fore.RED}[!]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}")
@@ -345,7 +384,6 @@ def validate_license_key():
         
         if not licenses:
             print(f"{Fore.RED}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Check GitHub token permissions and repository access{Style.RESET_ALL}")
             return False
         
         # Find the license key
@@ -430,7 +468,7 @@ def main():
             input(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
         elif choice == "3":
-            print(f"\n{Fore.GREEN}[+]{Style.RESET_ALL} {Fore.GREEN}Key Manager{Style.RESET_ALL}")
+            print(f"\n{Fore.GREEN}[+]{Style.RESETALL} {Fore.GREEN}Key Manager{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Connected to private GitHub database{Style.RESET_ALL}")
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}Repository: egirlhunt/nulllkeys{Style.RESET_ALL}")
             print(f"{Fore.CYAN}[•]{Style.RESET_ALL} {Fore.WHITE}File: keys.json{Style.RESET_ALL}")
