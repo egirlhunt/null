@@ -42,7 +42,7 @@ COLOR_THEMES = {
     "7": {"name": "White", "dark": 7, "medium": 15, "light": 231, "gradient_range": [7, 15, 231]},
     "8": {"name": "Orange", "dark": 130, "medium": 166, "light": 202, "gradient_range": [130, 166, 202, 208, 214]},
     "9": {"name": "Pink", "dark": 125, "medium": 162, "light": 219, "gradient_range": [125, 162, 199, 205, 219]},
-    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": list(range(196, 51, -1))}
+    "10": {"name": "Rainbow", "rainbow": True, "gradient_range": list(range(196, 50, -1))}
 }
 
 # Current theme (default to red)
@@ -150,8 +150,10 @@ If you lose it, use the "Generate ID" option in the tool.
 def get_color(intensity="medium"):
     """Get color based on current theme and intensity"""
     if current_theme.get("rainbow"):
-        # For rainbow, cycle through colors based on line number
-        return "\033[38;5;{}m".format(random.choice(current_theme["gradient_range"]))
+        # For rainbow, cycle through colors based on time
+        import time
+        color_index = int(time.time() * 10) % len(current_theme["gradient_range"])
+        return "\033[38;5;{}m".format(current_theme["gradient_range"][color_index])
     
     if intensity == "dark":
         return "\033[38;5;{}m".format(current_theme["dark"])
@@ -163,7 +165,7 @@ def get_color(intensity="medium"):
 def get_gradient_color(line_num, total_lines):
     """Get gradient color for a specific line"""
     if current_theme.get("rainbow"):
-        # Rainbow: cycle through the full range
+        # Rainbow: cycle through the full range based on line number
         color_index = line_num % len(current_theme["gradient_range"])
         return "\033[38;5;{}m".format(current_theme["gradient_range"][color_index])
     else:
@@ -176,11 +178,13 @@ def center_text(text, width=80):
     """Center text within given width"""
     return text.center(width)
 
-def print_centered(text, color_func=None, width=80):
+def print_centered(text, color_code=None, width=80):
     """Print centered text with optional color"""
     centered = text.center(width)
-    if color_func:
-        print(color_func + centered + Style.RESET_ALL)
+    if color_code:
+        if callable(color_code):
+            color_code = color_code()
+        print(color_code + centered + Style.RESET_ALL)
     else:
         print(centered)
 
@@ -355,37 +359,37 @@ def display_gradient_ascii_header_only():
     # Display graphic art with gradient
     for i, line in enumerate(ascii_graphic):
         color = get_gradient_color(i, len(ascii_graphic))
-        print_centered(line, lambda: color)
+        print_centered(line, color)
     
     print("\n")
     
     # Display text art with gradient
     for i, line in enumerate(ascii_text):
         color = get_gradient_color(i + len(ascii_graphic), len(ascii_graphic) + len(ascii_text))
-        print_centered(line, lambda: color)
+        print_centered(line, color)
     
     print("\n")
     
     # Add "made by @uekv on discord" with gradient
     made_by_text = "made by @uekv on discord"
     color = get_gradient_color(len(ascii_graphic) + len(ascii_text), len(ascii_graphic) + len(ascii_text) + 2)
-    print_centered(made_by_text, lambda: color)
+    print_centered(made_by_text, color)
     
     # Gradient line
     gradient_line = "─" * 50
-    print_centered(gradient_line, lambda: get_color("medium"))
+    print_centered(gradient_line, get_color("medium"))
 
 def display_gradient_ascii():
     """Full display with license prompt"""
     display_gradient_ascii_header_only()
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", width=80)
+    print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Enter License Key > {Style.RESET_ALL}", 80))
 
 def display_color_selection():
     """Display color selection menu"""
     clear_screen_preserve_header()
     
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}", width=80)
-    print_centered(f"{get_color('medium')}══════════════════════════════{Style.RESET_ALL}", width=80)
+    print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color Selection Menu{Style.RESET_ALL}", 80))
+    print(center_text(f"{get_color('medium')}══════════════════════════════{Style.RESET_ALL}", 80))
     print()
     
     # Display colors in centered format
@@ -404,13 +408,13 @@ def display_color_selection():
                 option = f"{color_code}[{key}]{Style.RESET_ALL}{Fore.WHITE} {theme['name']}"
                 row_text += option.ljust(30)
         
-        print_centered(row_text, width=80)
+        print(center_text(row_text, 80))
         if i + colors_per_row < len(color_keys):
-            print_centered(f"{get_color('dark')}─{Style.RESET_ALL}", width=80)
+            print(center_text(f"{get_color('dark')}─{Style.RESET_ALL}", 80))
     
     print()
-    print_centered(f"{get_color('medium')}────────────────────────────────────{Style.RESET_ALL}", width=80)
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Color > {Style.RESET_ALL}", width=80)
+    print(center_text(f"{get_color('medium')}────────────────────────────────────{Style.RESET_ALL}", 80))
+    print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Color > {Style.RESET_ALL}", 80))
     
     return input(" " * 35)  # Centered input
 
@@ -418,8 +422,8 @@ def display_options_grid():
     """Display options in centered format without boxes"""
     clear_screen_preserve_header()
     
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}", width=80)
-    print_centered(f"{get_color('medium')}══════════════════════════════{Style.RESET_ALL}", width=80)
+    print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Main Menu - Welcome!{Style.RESET_ALL}", 80))
+    print(center_text(f"{get_color('medium')}══════════════════════════════{Style.RESET_ALL}", 80))
     print()
     
     options = [
@@ -431,13 +435,13 @@ def display_options_grid():
     # Display each option centered with gradient
     for i, option in enumerate(options):
         color = get_gradient_color(i, len(options))
-        print_centered(option, lambda c=color: c)
+        print(center_text(option, 80))
         if i < len(options) - 1:
-            print_centered(f"{get_color('dark')}─{Style.RESET_ALL}", width=80)
+            print(center_text(f"{get_color('dark')}─{Style.RESET_ALL}", 80))
     
     print()
-    print_centered(f"{get_color('medium')}────────────────────────────────────{Style.RESET_ALL}", width=80)
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}", width=80)
+    print(center_text(f"{get_color('medium')}────────────────────────────────────{Style.RESET_ALL}", 80))
+    print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select Option > {Style.RESET_ALL}", 80))
     
     return input(" " * 35)  # Centered input
 
@@ -446,10 +450,10 @@ def validate_license_key():
     user_key = input().strip()
     
     if not user_key:
-        print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}", width=80)
+        print(center_text(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}No license key entered!{Style.RESET_ALL}", 80))
         return False, ""
     
-    print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}", width=80)
+    print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking private database...{Style.RESET_ALL}", 80))
     time.sleep(1)
     
     try:
@@ -457,7 +461,7 @@ def validate_license_key():
         licenses = fetch_license_data()
         
         if not licenses:
-            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}", width=80)
+            print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Private database connection failed{Style.RESET_ALL}", 80))
             return False, ""
         
         # Find the license key
@@ -473,57 +477,57 @@ def validate_license_key():
                 
                 if not stored_hwid:
                     # First time activation
-                    print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}", width=80)
+                    print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}New activation detected{Style.RESET_ALL}", 80))
                     
                     # Generate ID if not exists
                     if not user_id:
                         user_id = generate_random_id()
-                        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}", width=80)
+                        print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generated User ID: {user_id}{Style.RESET_ALL}", 80))
                         save_id_to_file(user_id, user_key)
                     
                     # Send webhook notification
                     send_webhook(user_key, current_hwid, user_id)
                     
                     # Update GitHub database with HWID and ID
-                    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database...{Style.RESET_ALL}", width=80)
+                    print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Updating private database...{Style.RESET_ALL}", 80))
                     if update_license_data(user_key, current_hwid, user_id):
-                        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}", width=80)
+                        print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}License activated!{Style.RESET_ALL}", 80))
                         time.sleep(2)
                         return True, user_key
                     else:
-                        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database update failed{Style.RESET_ALL}", width=80)
+                        print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database update failed{Style.RESET_ALL}", 80))
                         return False, ""
                 else:
                     # Check HWID match
                     if stored_hwid == current_hwid:
-                        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}", width=80)
+                        print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Hardware verified{Style.RESET_ALL}", 80))
                         if user_id and not os.path.exists("ID.txt"):
                             save_id_to_file(user_id, user_key)
                         time.sleep(1)
                         return True, user_key
                     else:
-                        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}", width=80)
-                        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Your HWID: {current_hwid[:16]}...{Style.RESET_ALL}", width=80)
-                        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database HWID: {stored_hwid[:16]}...{Style.RESET_ALL}", width=80)
-                        print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv{Style.RESET_ALL}", width=80)
+                        print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Hardware mismatch!{Style.RESET_ALL}", 80))
+                        print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Your HWID: {current_hwid[:16]}...{Style.RESET_ALL}", 80))
+                        print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Database HWID: {stored_hwid[:16]}...{Style.RESET_ALL}", 80))
+                        print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}If this is a mistake, DM @uekv{Style.RESET_ALL}", 80))
                         
                         for i in range(10, 0, -1):
-                            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}", width=80)
+                            print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}", 80))
                             time.sleep(1)
                         return False, ""
         
         if not license_found:
-            print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}", width=80)
-            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}", width=80)
+            print(center_text(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}License not found in private database!{Style.RESET_ALL}", 80))
+            print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Closing in 3 seconds...{Style.RESET_ALL}", 80))
             
             for i in range(3, 0, -1):
-                print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}", width=80)
+                print(center_text(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Closing in {i}...{Style.RESET_ALL}", 80))
                 time.sleep(1)
             
             return False, ""
             
     except Exception as e:
-        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}", width=80)
+        print(center_text(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Database error: {e}{Style.RESET_ALL}", 80))
         return False, ""
     
     return False, ""
@@ -551,15 +555,15 @@ def main():
             if color_choice in COLOR_THEMES:
                 current_theme = COLOR_THEMES[color_choice]
                 current_gradient_colors = current_theme["gradient_range"]
-                print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}", width=80)
+                print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Color changed to {current_theme['name']}{Style.RESET_ALL}", 80))
             else:
-                print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}", width=80)
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", width=80)
+                print(center_text(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}", 80))
+            print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", 80))
             input(" " * 35)
             
         elif choice == "2":
             # Generate ID
-            print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}", width=80)
+            print(center_text(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Generating new ID...{Style.RESET_ALL}", 80))
             
             # Check if license is still valid
             licenses = fetch_license_data()
@@ -576,23 +580,23 @@ def main():
                 update_license_data(license_key, get_hwid(), user_id)
             
             save_id_to_file(user_id, license_key)
-            print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}", width=80)
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", width=80)
+            print(center_text(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}ID generated and saved!{Style.RESET_ALL}", 80))
+            print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", 80))
             input(" " * 35)
             
         elif choice == "3" or choice == "exit":
-            print_centered(f"\n{Fore.WHITE}[{get_color('light')}-{Fore.WHITE}]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}", width=80)
+            print(center_text(f"\n{Fore.WHITE}[{get_color('light')}-{Fore.WHITE}]{Style.RESET_ALL} {Fore.WHITE}Exiting...{Style.RESET_ALL}", 80))
             time.sleep(1)
             sys.exit(0)
             
         else:
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}", width=80)
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", width=80)
+            print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Invalid option{Style.RESET_ALL}", 80))
+            print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}", 80))
             input(" " * 35)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}", width=80)
+        print(center_text(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Interrupted{Style.RESET_ALL}", 80))
         sys.exit(0)
