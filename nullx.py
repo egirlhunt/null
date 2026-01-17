@@ -9,15 +9,15 @@ import base64
 import random
 import string
 import colorsys
+import asyncio
+import discord
+import aiohttp
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from colorama import init, Fore, Style
+from discord.ext import commands
 import ctypes
 import threading
-import asyncio
-import discord
-from discord.ext import commands
-import aiohttp
 
 init(autoreset=True)
 
@@ -54,12 +54,173 @@ COLOR_THEMES = {
 # Set default theme to Purple (option 7)
 current_theme = COLOR_THEMES["7"]
 
-# License key storage file
+# Files
 LICENSE_FILE = "license.key"
-
-# Selfbot storage files
+ID_FILE = "ID.txt"
 SELFBOT_TOKENS_FILE = "selfbot_tokens.json"
 SELFBOT_CONFIG_FILE = "config.json"
+
+# Selfbot configuration
+selfbot_running = False
+running_bots = []
+copycat_users = set()
+current_prefix = "."
+
+BEEF_LINES = [
+    "UR FUCKING UGLY AND ASS",
+    "WEAK ASS NIGGA",
+    "SHUT TEH FUCK UP",
+    "TRASH ASS PUSSY",
+    "UR TRASH A FUKC",
+    "GABRGAE ASS CUCK",
+    "LMFAO UR SO ASS",
+    "UR A WEAK ASS PUSYSUR SO ASS",
+    "LMFAO UR SO TRASH DONT DIE TO ME",
+    "UR MY FUCKING BITCH UR ULY",
+    "UR A WEK ASS PUSSY",
+    "DONT FOLD TO ME",
+    "LETS BOX PUSSY",
+    "UR SO FUCKING TRASH KILL URSELF JR",
+    "UR UR SO MAD",
+    "LMFAO I WILL BLOW UR HEAD OFF",
+    "UR A FUCKING TRASH ASS PUSSY",
+    "UR WEAK ASS FUCK",
+    "UR A DORK ASS NIGA",
+    "UR SO MAD LFMAO UR SO UGLY",
+    "FIGTH ME BACK PUSSY?",
+    "UR SCARED OF ME",
+    "UR A FUCKING LOSER",
+    "FIGHT ME NBACK NAZI",
+    "UR SO MAD LOOOOOL",
+    "U0R SO ANGRY",
+    "U OVERDOSE ON STERIODS",
+    "UR SO ANGRY LOOOL",
+    "FIGHT ME BACK PUSSY",
+    "NAZI PUSSY",
+    "UR SO FUCKING TRASH AND A LOSER",
+    "RETARD WHY SO ASS",
+    "NIGGER UR TRASH",
+    "KILL URSELF FAGGOT",
+    "UR SO FUCKIGN TRASH COMMIT SUICIDE U JEWISH FUCKING RETARD",
+    "UR SO FUCKIGN ANNOYING UR UGLY AS FUCK",
+    "UR A WEAK ASS PUSSY UR SO MAD LFMAO",
+    "UR SO ANGRY UR A FUCKIGN DYKE",
+    "SHUT THE FUCK UP",
+    "UR SO TRASH LOL KILL URSELF",
+    "JEW",
+    "UR SO ASS LMFOA UR SO ASS OL",
+    "KILL URSELF DUMB ASS FUCKING LOSE",
+    "UR SO ASS LFMAO UR SO TRASH",
+    "TRASH ASS PUSSY",
+    "DONT DIE TO ME UR SO ASS LOL",
+    "UR SO TRASH DONT DIE",
+    "UR SO ANGRY DONT DIE",
+    "WEAK TRASH ASS NIGGA",
+    "URSO ASS",
+    "TRASH CAN U ALR FOLDED",
+    "PUSSY ASS FAGGOT",
+    "UR SO ANGRY LOL",
+    "UR SO ASS LOL",
+    "I BITCHED U",
+    "UR A FUCKING PUSSY",
+    "WHY SO ASS",
+    "UR TO WEAK FOR ME TRASH ASS NIGGA",
+    "UR SO UGLY AND FAT",
+    "NIGGA UR TRASH",
+    "UR SO ASS LOL",
+    "PUSSY STOP FOLDING TO ME UR SO FUCKING ASS",
+    "WEKA ASS LOSER UR SO TRASHS",
+    "WEAK ASS PUSSY LOL",
+    "UR SO MAD UR A LOSER UR ANGRY AS FUCK",
+    "FIGHT ME BACK",
+    "UR SO FUCKING ASS FIGHT ME BACK",
+    "UR A FUCKING GEEK UR SO UGLY AND A LOSER",
+    "UR A WEAK ASS PUSSY",
+    "I WONT FOLD AND UR A LOSER",
+    "UR SO FUCKIGN TRASH",
+    "ITS BELT TO ASS RN",
+    "BOX ME U WONT DO IT",
+    "UR SO FUCKING TRASH AND UGLY",
+    "STAB UR THROAT",
+    "PUSSY ASS FAGGOT",
+    "UR ON REPEAT UR A LOSER",
+    "UR SO ANGRY",
+    "FIGHT ME BACKPUSSY",
+    "U AS FUCK PSYCHOPATH GEEK UR ASS AS FUCK",
+    "UR TRASH UR MY SON UR UGLY AS FUCK FOREIGN RETARD GAY UR ASS AS FUCK",
+    "UR MY BITCH UR MY SON UR UGLY AS FUCK STARVING MUSLIM NIGGA SHUT THE FUCK UP",
+    "ASS FUCKING RETARD UR MY SON UR UGLY AS FUCK LIFELESS PARANOID UR UGLY AS FUCK",
+    "WEAK ASS FUCK NIGGA UR MY SON UR UGLY AS FUCK CONTAMINATED HUMILIATION GARBAGE ASS FUCK NIGGA",
+    "UR UGLY AS FUCK UR MY SON UR UGLY AS FUCK BRAIN DAMAGED MONGREL BITCH ASS FAGGOT",
+    "WEAK ASS RETARD UR MY SON UR UGLY AS FUCK DIMWIT FAGGOT UR UGLY AS FUCK",
+    "HOED ASS LOSER UR MY SON UR UGLY AS FUCK INFERIOR PREDATOR UR ASS FUCKING RETARD",
+    "YOU DIED UR MY SON UR UGLY AS FUCK UNIMPORTANT GAY UR MY FUCKING SON UR SLOW AS FUCK UR TRASH AS FUCK",
+    "GARBAGE ASS NIGGA UR MY SON UR UGLY AS FUCK OBNOXIOUS TRASH SHUT THE FUCK UP UR DEADASS TRASH",
+    "UR MY FUCKING SLAVE UR ASS UR MY SON UR UGLY AS FUCK NECROPHILE UGLY TERRIBLE FUCKING WHORE",
+    "YOU ARE RETARDED UR MY SON UR UGLY AS FUCK UNESTABLISHED SLOW POORON ASS NIGGA",
+    "UR FUCKING RETARDED UR MY SON UR UGLY AS FUCK FAGGOT SCHIZOPHRENIC UR MY BITCH",
+    "RETARDED FUCK NIGGA UR MY SON UR UGLY AS FUCK ALIEN DORK TRASH ASS FUCK NIGGA",
+    "UGLY LITTLE FAGGOT UR MY SON UR UGLY AS FUCK LOOKSMAXXING ISLAM SLOW ASS LITTLE FUCKING RETARD",
+    "UR MY BITCH UR MY SON UR UGLY AS FUCK MANIPULATED FAGGOT UR ASS AS FUCK",
+    "FAGGOT ASS LOSER UR MY SON UR UGLY AS FUCK PSYCHOPATH INFURATED UR WEAK AS FUCK",
+    "GARBAGE ASS RETARD UR MY SON UR UGLY AS FUCK ABANDONED FAGGOT NIGGA UR MY SON",
+    "LITTLE ASS WHORE UR MY SON UR UGLY AS FUCK MUNICIPAL MUSLIM ON GOD YOU GOT FUCKING HOED",
+    "UR MY BITCH UR MY SON UR UGLY AS FUCK DIMWIT JEWISH WEAK ASS FUCKING IDIOT",
+    "WEAK ASS FUCK NIGGA UR MY SON UR UGLY AS FUCK GARBAGE SLUT UR SLOW AS FUCK",
+    "CUCK ASS RETARD UR MY SON UR UGLY AS FUCK RANCID BLOATED RETARD UR UNKNOWN",
+    "UR ASS UR MY SON UR UGLY AS FUCK SUBMISSIVE MUSLIM TRASH ASS FUCKING RETARD",
+    "RETARDED FUCK NIGGA UR MY SON UR UGLY AS FUCK LESBIAN BITCH UR UGLY AS FUCK"
+]
+
+SELFBOT_ASCII_LINES = [
+    "                      ..:::::::::::::..",
+    "                .:::::''              ``:::.",
+    "              .:;'                        `::.",
+    "           ..::'                            `::.",
+    "          ::'                                  ::.:'",
+    "      `::.::                                    ::.",
+    "    .::::::::'                                `:.:::.    .:':'",
+    ":::::::::::::.          .:.                .:. ` ::::::::::::'",
+    ":::.::::::::::::'       :::                :::    :::::::::':::",
+    "..::::::::::::'          ' `                ' `   .::::::' :::'",
+    "::::::::::::'  `:.   .:::::::.          .:::::::.:: .:' :'.::'",
+    "::::::::::::    `::.::'     `::.      .::'     `::.::':'.:::",
+    "::::::::::::      .::'        `:;  . .::'        `:;:'.::''",
+    ":::::::::::'.     ::'    .    .:: :  ::'    .    .:::::''",
+    ":`::::::::::::.:  `::.  :O: .::;' :  `::.  :O: .::;'::'",
+    "   `::::::`::`:.    `:::::::::'   :.   `:::::::::':'''",
+    "       `````:`::.     , .         `:.        , . `::.",
+    "            :: `::.   :::      ..::::::::..  :::  `::",
+    "      .::::'::. `::.  `:'     :::::::::::::; `:'   :;",
+    "            ::'    ::.   .::'  ``:::::::;'' :.   .:'",
+    "            `::    `::  ::'        ::       .::  :'",
+    "             ::.    :'.::::::.    :  :   .::::. .:::.",
+    ":.           `::.     :::'  ``::::. .::::'' `::::' `::.",
+    "`::.          `::.    `:::. ::.  `::::' .:: ::::;    `::",
+    ":.`:.          `::.     `::. `:::.    .::'  ::;'     .:;.",
+    " ::`::.          `::.     `::.  `::. .::' .:;':'     :;':.",
+    "::':``:::::.       `::.     `::. `::::'  .:;':'     .;':':",
+    ": .:`:::':`:::::.   `::.      `:::.   .::;'.:'  .::;'' ';:",
+    "..::': :. ::::. `::::::`::..      `:::::'  .:':::'::.:: :':",
+    ":' :'.:::. `:: :: ::. .::`::.   .     . .:;':' ::'`:: :::'",
+    ": ::.:. `:  `::'  `:: ::'::`::::::::::::;' :: .:' .::: ;:'",
+    "::.::.:::: .:: :.  `:':'  ::.:'`::. .::':.::' :: .::''::'",
+    "`:::`::.`:.::' ::  .: ::  `::'  `:: :' .::' ::.:.::' :;",
+    "   `::::::.`:. .:. :: `::.:: ::  `::. .:: ::.`:::':.:;'",
+    "         `::::::::::...:::'  `::.:'`:.::'.:.:;' .:;'",
+    "                    `::::::::::::::::::::'.::;:;'",
+    "",
+    "▓█████▄  ██▓▓█████    ",
+    "▒██▀ ██▌▓██▒▓█   ▀    ",
+    "░██   █▌▒██▒▒███      ",
+    "░▓█▄   ▌░██░▒▓█  ▄    ",
+    "░▒████▓ ░██░░▒████▒   ",
+    " ▒▒▓  ▒ ░▓  ░░ ▒░ ░   ",
+    " ░ ▒  ▒  ▒ ░ ░ ░  ░   ",
+    " ░ ░  ░  ▒ ░   ░      ",
+    "   ░     ░     ░  ░   ",
+    " ░                     "
+]
 
 def get_console_width():
     """Get current console width"""
@@ -243,7 +404,7 @@ This ID is your proof of ownership.
 If you lose it, use the "Generate ID" option in the tool.
 """.format(user_id=user_id, license_key=license_key)
     
-    with open("ID.txt", "w") as f:
+    with open(ID_FILE, "w") as f:
         f.write(warning_text)
     
     print_centered(f"{get_color('medium')}[+]{Style.RESET_ALL} {Fore.WHITE}ID saved to ID.txt{Style.RESET_ALL}")
@@ -732,7 +893,7 @@ def validate_license_key(save_license_prompt=False):
                         
                         update_license_data_with_ip(user_key, current_hwid, user_id, None)
                         
-                        if user_id and not os.path.exists("ID.txt"):
+                        if user_id and not os.path.exists(ID_FILE):
                             save_id_to_file(user_id, user_key)
                         time.sleep(1)
                         return True, user_key
@@ -785,7 +946,7 @@ def display_nuking_menu():
 
     # Format options in pairs - ALL WHITE TEXT, PROPERLY CENTERED with more space
     rows = [
-        (f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Fast nuke", 
+        (f"{get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Fast Nuke", 
          f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Nuke"),
         (f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Raid", 
          f"{get_color('light')}[4]{Style.RESET_ALL}{Fore.WHITE} Webhook spam"),
@@ -1026,7 +1187,7 @@ async def fast_nuke(bot):
         
         # Send messages
         if spam_tasks:
-            print(f"{Fore.YELLow}[INFO] Sending {len(spam_tasks)} messages...{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[INFO] Sending {len(spam_tasks)} messages...{Style.RESET_ALL}")
             try:
                 await asyncio.gather(*spam_tasks, return_exceptions=True)
             except Exception as e:
@@ -1358,7 +1519,7 @@ async def role_delete(bot):
     # Try to fetch guild
     g = bot.get_guild(gid)
     if not g:
-        print(f"{Fore.YELLOW}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
+        print(f"{Fore.YELLow}[INFO] Guild not in cache, fetching from API...{Style.RESET_ALL}")
         try:
             g = await bot.fetch_guild(gid)
         except discord.NotFound:
@@ -1563,56 +1724,6 @@ async def kick_all(bot):
 #   SELFBOT CATEGORY - USES USER TOKENS ONLY (STRICTLY USER TOKENS)
 # ────────────────────────────────────────────────────────────────────────────────
 
-SELFBOT_ASCII_LINES = [
-    "                      ..:::::::::::::..",
-    "                .:::::''              ``:::.",
-    "              .:;'                        `::.",
-    "           ..::'                            `::.",
-    "          ::'                                  ::.:'",
-    "      `::.::                                    ::.",
-    "    .::::::::'                                `:.:::.    .:':'",
-    ":::::::::::::.          .:.                .:. ` ::::::::::::'",
-    ":::.::::::::::::'       :::                :::    :::::::::':::",
-    "..::::::::::::'          ' `                ' `   .::::::' :::'",
-    "::::::::::::'  `:.   .:::::::.          .:::::::.:: .:' :'.::'",
-    "::::::::::::    `::.::'     `::.      .::'     `::.::':'.:::",
-    "::::::::::::      .::'        `:;  . .::'        `:;:'.::''",
-    ":::::::::::'.     ::'    .    .:: :  ::'    .    .:::::''",
-    ":`::::::::::::.:  `::.  :O: .::;' :  `::.  :O: .::;'::'",
-    "   `::::::`::`:.    `:::::::::'   :.   `:::::::::':'''",
-    "       `````:`::.     , .         `:.        , . `::.",
-    "            :: `::.   :::      ..::::::::..  :::  `::",
-    "      .::::'::. `::.  `:'     :::::::::::::; `:'   :;",
-    "            ::'    ::.   .::'  ``:::::::;'' :.   .:'",
-    "            `::    `::  ::'        ::       .::  :'",
-    "             ::.    :'.::::::.    :  :   .::::. .:::.",
-    ":.           `::.     :::'  ``::::. .::::'' `::::' `::.",
-    "`::.          `::.    `:::. ::.  `::::' .:: ::::;    `::",
-    ":.`:.          `::.     `::. `:::.    .::'  ::;'     .:;.",
-    " ::`::.          `::.     `::.  `::. .::' .:;':'     :;':.",
-    "::':``:::::.       `::.     `::. `::::'  .:;':'     .;':':",
-    ": .:`:::':`:::::.   `::.      `:::.   .::;'.:'  .::;'' ';:",
-    "..::': :. ::::. `::::::`::..      `:::::'  .:':::'::.:: :':",
-    ":' :'.:::. `:: :: ::. .::`::.   .     . .:;':' ::'`:: :::'",
-    ": ::.:. `:  `::'  `:: ::'::`::::::::::::;' :: .:' .::: ;:'",
-    "::.::.:::: .:: :.  `:':'  ::.:'`::. .::':.::' :: .::''::'",
-    "`:::`::.`:.::' ::  .: ::  `::'  `:: :' .::' ::.:.::' :;",
-    "   `::::::.`:. .:. :: `::.:: ::  `::. .:: ::.`:::':.:;'",
-    "         `::::::::::...:::'  `::.:'`:.::'.:.:;' .:;'",
-    "                    `::::::::::::::::::::'.::;:;'",
-    "",
-    "▓█████▄  ██▓▓█████    ",
-    "▒██▀ ██▌▓██▒▓█   ▀    ",
-    "░██   █▌▒██▒▒███      ",
-    "░▓█▄   ▌░██░▒▓█  ▄    ",
-    "░▒████▓ ░██░░▒████▒   ",
-    " ▒▒▓  ▒ ░▓  ░░ ▒░ ░   ",
-    " ░ ▒  ▒  ▒ ░ ░ ░  ░   ",
-    " ░ ░  ░  ▒ ░   ░      ",
-    "   ░     ░     ░  ░   ",
-    " ░                     "
-]
-
 def display_selfbot_ascii():
     """Display Selfbot ASCII art"""
     clear_console()
@@ -1636,6 +1747,7 @@ def display_selfbot_menu():
         f"{get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Start bots",
         f"{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Stop bots",
         f"{get_color('light')}[4]{Style.RESET_ALL}{Fore.WHITE} Status",
+        f"{get_color('light')}[5]{Style.RESET_ALL}{Fore.WHITE} Edit Config",
         f"{get_color('light')}[0]{Style.RESET_ALL}{Fore.WHITE} ← Back"
     ]
     
@@ -1645,118 +1757,6 @@ def display_selfbot_menu():
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}")
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select > ", end="")
     return input().strip()
-
-# Selfbot configuration
-selfbot_running = False
-running_bots = []
-copycat_users = set()
-current_prefix = "."
-
-BEEF_LINES = [
-    "UR FUCKING UGLY AND ASS",
-    "WEAK ASS NIGGA",
-    "SHUT TEH FUCK UP",
-    "TRASH ASS PUSSY",
-    "UR TRASH A FUKC",
-    "GABRGAE ASS CUCK",
-    "LMFAO UR SO ASS",
-    "UR A WEAK ASS PUSYSUR SO ASS",
-    "LMFAO UR SO TRASH DONT DIE TO ME",
-    "UR MY FUCKING BITCH UR ULY",
-    "UR A WEK ASS PUSSY",
-    "DONT FOLD TO ME",
-    "LETS BOX PUSSY",
-    "UR SO FUCKING TRASH KILL URSELF JR",
-    "UR UR SO MAD",
-    "LMFAO I WILL BLOW UR HEAD OFF",
-    "UR A FUCKING TRASH ASS PUSSY",
-    "UR WEAK ASS FUCK",
-    "UR A DORK ASS NIGA",
-    "UR SO MAD LFMAO UR SO UGLY",
-    "FIGTH ME BACK PUSSY?",
-    "UR SCARED OF ME",
-    "UR A FUCKING LOSER",
-    "FIGHT ME NBACK NAZI",
-    "UR SO MAD LOOOOOL",
-    "U0R SO ANGRY",
-    "U OVERDOSE ON STERIODS",
-    "UR SO ANGRY LOOOL",
-    "FIGHT ME BACK PUSSY",
-    "NAZI PUSSY",
-    "UR SO FUCKING TRASH AND A LOSER",
-    "RETARD WHY SO ASS",
-    "NIGGER UR TRASH",
-    "KILL URSELF FAGGOT",
-    "UR SO FUCKIGN TRASH COMMIT SUICIDE U JEWISH FUCKING RETARD",
-    "UR SO FUCKIGN ANNOYING UR UGLY AS FUCK",
-    "UR A WEAK ASS PUSSY UR SO MAD LFMAO",
-    "UR SO ANGRY UR A FUCKIGN DYKE",
-    "SHUT THE FUCK UP",
-    "UR SO TRASH LOL KILL URSELF",
-    "JEW",
-    "UR SO ASS LMFOA UR SO ASS OL",
-    "KILL URSELF DUMB ASS FUCKING LOSE",
-    "UR SO ASS LFMAO UR SO TRASH",
-    "TRASH ASS PUSSY",
-    "DONT DIE TO ME UR SO ASS LOL",
-    "UR SO TRASH DONT DIE",
-    "UR SO ANGRY DONT DIE",
-    "WEAK TRASH ASS NIGGA",
-    "URSO ASS",
-    "TRASH CAN U ALR FOLDED",
-    "PUSSY ASS FAGGOT",
-    "UR SO ANGRY LOL",
-    "UR SO ASS LOL",
-    "I BITCHED U",
-    "UR A FUCKING PUSSY",
-    "WHY SO ASS",
-    "UR TO WEAK FOR ME TRASH ASS NIGGA",
-    "UR SO UGLY AND FAT",
-    "NIGGA UR TRASH",
-    "UR SO ASS LOL",
-    "PUSSY STOP FOLDING TO ME UR SO FUCKING ASS",
-    "WEKA ASS LOSER UR SO TRASHS",
-    "WEAK ASS PUSSY LOL",
-    "UR SO MAD UR A LOSER UR ANGRY AS FUCK",
-    "FIGHT ME BACK",
-    "UR SO FUCKING ASS FIGHT ME BACK",
-    "UR A FUCKING GEEK UR SO UGLY AND A LOSER",
-    "UR A WEAK ASS PUSSY",
-    "I WONT FOLD AND UR A LOSER",
-    "UR SO FUCKIGN TRASH",
-    "ITS BELT TO ASS RN",
-    "BOX ME U WONT DO IT",
-    "UR SO FUCKING TRASH AND UGLY",
-    "STAB UR THROAT",
-    "PUSSY ASS FAGGOT",
-    "UR ON REPEAT UR A LOSER",
-    "UR SO ANGRY",
-    "FIGHT ME BACKPUSSY",
-    "U AS FUCK PSYCHOPATH GEEK UR ASS AS FUCK",
-    "UR TRASH UR MY SON UR UGLY AS FUCK FOREIGN RETARD GAY UR ASS AS FUCK",
-    "UR MY BITCH UR MY SON UR UGLY AS FUCK STARVING MUSLIM NIGGA SHUT THE FUCK UP",
-    "ASS FUCKING RETARD UR MY SON UR UGLY AS FUCK LIFELESS PARANOID UR UGLY AS FUCK",
-    "WEAK ASS FUCK NIGGA UR MY SON UR UGLY AS FUCK CONTAMINATED HUMILIATION GARBAGE ASS FUCK NIGGA",
-    "UR UGLY AS FUCK UR MY SON UR UGLY AS FUCK BRAIN DAMAGED MONGREL BITCH ASS FAGGOT",
-    "WEAK ASS RETARD UR MY SON UR UGLY AS FUCK DIMWIT FAGGOT UR UGLY AS FUCK",
-    "HOED ASS LOSER UR MY SON UR UGLY AS FUCK INFERIOR PREDATOR UR ASS FUCKING RETARD",
-    "YOU DIED UR MY SON UR UGLY AS FUCK UNIMPORTANT GAY UR MY FUCKING SON UR SLOW AS FUCK UR TRASH AS FUCK",
-    "GARBAGE ASS NIGGA UR MY SON UR UGLY AS FUCK OBNOXIOUS TRASH SHUT THE FUCK UP UR DEADASS TRASH",
-    "UR MY FUCKING SLAVE UR ASS UR MY SON UR UGLY AS FUCK NECROPHILE UGLY TERRIBLE FUCKING WHORE",
-    "YOU ARE RETARDED UR MY SON UR UGLY AS FUCK UNESTABLISHED SLOW POORON ASS NIGGA",
-    "UR FUCKING RETARDED UR MY SON UR UGLY AS FUCK FAGGOT SCHIZOPHRENIC UR MY BITCH",
-    "RETARDED FUCK NIGGA UR MY SON UR UGLY AS FUCK ALIEN DORK TRASH ASS FUCK NIGGA",
-    "UGLY LITTLE FAGGOT UR MY SON UR UGLY AS FUCK LOOKSMAXXING ISLAM SLOW ASS LITTLE FUCKING RETARD",
-    "UR MY BITCH UR MY SON UR UGLY AS FUCK MANIPULATED FAGGOT UR ASS AS FUCK",
-    "FAGGOT ASS LOSER UR MY SON UR UGLY AS FUCK PSYCHOPATH INFURATED UR WEAK AS FUCK",
-    "GARBAGE ASS RETARD UR MY SON UR UGLY AS FUCK ABANDONED FAGGOT NIGGA UR MY SON",
-    "LITTLE ASS WHORE UR MY SON UR UGLY AS FUCK MUNICIPAL MUSLIM ON GOD YOU GOT FUCKING HOED",
-    "UR MY BITCH UR MY SON UR UGLY AS FUCK DIMWIT JEWISH WEAK ASS FUCKING IDIOT",
-    "WEAK ASS FUCK NIGGA UR MY SON UR UGLY AS FUCK GARBAGE SLUT UR SLOW AS FUCK",
-    "CUCK ASS RETARD UR MY SON UR UGLY AS FUCK RANCID BLOATED RETARD UR UNKNOWN",
-    "UR ASS UR MY SON UR UGLY AS FUCK SUBMISSIVE MUSLIM TRASH ASS FUCKING RETARD",
-    "RETARDED FUCK NIGGA UR MY SON UR UGLY AS FUCK LESBIAN BITCH UR UGLY AS FUCK"
-]
 
 def load_selfbot_tokens():
     """Load selfbot tokens from file"""
@@ -1783,14 +1783,65 @@ def save_selfbot_tokens(data):
 
 def load_selfbot_config():
     """Load selfbot config from file"""
+    default_config = {
+        "RpcClientID": "",
+        "Rpcstate": "Playing Birth Selfbot",
+        "Rpcdetails": "",
+        "large_image": "",
+        "small_image": "jjejjdjdj",
+        "large_text": "",
+        "party_id": "roster332289",
+        "ButtonLabel": "Roster",
+        "ButtonLabel1url": "https://discord.gg/roster",
+        "ButtonLabel2": "guns.lol/firearm",
+        "ButtonLabel2url": "https://guns.lol/firearm",
+        "NukeServerBypass": "1289325760040927264"
+    }
+    
     if not os.path.exists(SELFBOT_CONFIG_FILE):
-        return {}
+        with open(SELFBOT_CONFIG_FILE, "w") as f:
+            json.dump(default_config, f, indent=2)
+        return default_config
     
     try:
         with open(SELFBOT_CONFIG_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+            config = json.load(f)
+            for key in default_config:
+                if key not in config:
+                    config[key] = default_config[key]
+            return config
+    except:
+        return default_config
+
+def save_selfbot_config(config):
+    """Save selfbot config to file"""
+    try:
+        with open(SELFBOT_CONFIG_FILE, "w") as f:
+            json.dump(config, f, indent=2)
+        return True
+    except:
+        return False
+
+def edit_config_menu():
+    """Edit selfbot configuration"""
+    config = load_selfbot_config()
+    
+    display_selfbot_ascii()
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Edit Config.json{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to keep current value{Style.RESET_ALL}")
+    print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
+    
+    for key, value in config.items():
+        new_value = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}{key} [{value}] > ").strip()
+        if new_value:
+            config[key] = new_value
+    
+    if save_selfbot_config(config):
+        print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Config saved!{Style.RESET_ALL}")
+    else:
+        print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Failed to save{Style.RESET_ALL}")
+    
+    input(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter...{Style.RESET_ALL}")
 
 class SelfBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -2183,6 +2234,9 @@ async def handle_selfbot():
         elif choice == "4":
             show_selfbot_status()
             
+        elif choice == "5":
+            edit_config_menu()
+            
         elif choice == "0":
             break
             
@@ -2205,6 +2259,9 @@ def main():
     if not valid_license:
         print(f"{Fore.RED}[ERROR] Invalid license key. Exiting...{Style.RESET_ALL}")
         sys.exit(1)
+    
+    # Ensure config exists
+    load_selfbot_config()
     
     while True:
         choice = display_main_menu()
