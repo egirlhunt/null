@@ -631,8 +631,8 @@ def display_main_menu():
     menu_text = f"""
 {get_color('light')}[1]{Style.RESET_ALL}{Fore.WHITE} Change Color
 {get_color('light')}[2]{Style.RESET_ALL}{Fore.WHITE} Generate ID
-{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Nuking (BOT tokens)
-{get_color('light')}[4]{Style.RESET_ALL}{Fore.WHITE} Selfbot (USER tokens)
+{get_color('light')}[3]{Style.RESET_ALL}{Fore.WHITE} Nuking (BOT tokens ONLY)
+{get_color('light')}[4]{Style.RESET_ALL}{Fore.WHITE} Selfbot (USER tokens ONLY)
 {get_color('light')}[5]{Style.RESET_ALL}{Fore.WHITE} Exit
 """
     
@@ -773,13 +773,14 @@ def validate_license_key(save_license_prompt=False):
     return False, ""
 
 # ────────────────────────────────────────────────────────────────────────────────
-#   NUKING CATEGORY - USES BOT TOKENS (Modified to handle bot tokens)
+#   NUKING CATEGORY - USES BOT TOKENS ONLY (STRICTLY BOT TOKENS)
 # ────────────────────────────────────────────────────────────────────────────────
 
 def display_nuking_menu():
     display_ascii_art()
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Nuking Menu (USE BOT TOKENS){Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This category requires BOT tokens from Discord Developer Portal{Style.RESET_ALL}")
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Nuking Menu (BOT TOKENS ONLY){Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This category requires BOT tokens ONLY from Discord Developer Portal{Style.RESET_ALL}")
+    print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}USER TOKENS WILL BE REJECTED HERE{Style.RESET_ALL}")
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
 
     # Format options in pairs - ALL WHITE TEXT, PROPERLY CENTERED with more space
@@ -804,8 +805,60 @@ def display_nuking_menu():
     print(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Select > ", end="")
     return input().strip()
 
+async def validate_bot_token(token):
+    """Validate a BOT token (not user token)"""
+    # Clean token
+    clean_token = token.strip().replace('"', '').replace("'", "")
+    
+    # Check if it starts with Bot/bot prefix
+    if not (clean_token.startswith('Bot ') or clean_token.startswith('bot ')):
+        # Try to add Bot prefix
+        if not clean_token.startswith('Bot ') and not clean_token.startswith('bot '):
+            clean_token = f"Bot {clean_token}"
+    
+    headers = {
+        "Authorization": clean_token,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Try to fetch bot info from Discord API
+            async with session.get("https://discord.com/api/v10/users/@me", headers=headers) as resp:
+                if resp.status == 200:
+                    user_data = await resp.json()
+                    # Check if it's a bot account
+                    if user_data.get('bot', False):
+                        username = f"{user_data['username']}#{user_data.get('discriminator', '0')}"
+                        return True, username, "bot"
+                    else:
+                        return False, None, "user_token_not_bot"
+                elif resp.status == 401:
+                    return False, None, "invalid_token"
+                else:
+                    return False, None, f"api_error_{resp.status}"
+    except asyncio.TimeoutError:
+        return False, None, "timeout"
+    except Exception as e:
+        return False, None, f"connection_error: {str(e)}"
+
 async def run_nuker(token: str, coro):
-    """Run nuker with BOT token"""
+    """Run nuker with BOT token ONLY"""
+    # Validate it's a bot token first
+    print(f"{Fore.YELLOW}[INFO] Validating BOT token...{Style.RESET_ALL}")
+    valid, username, token_type = await validate_bot_token(token)
+    
+    if not valid:
+        if token_type == "user_token_not_bot":
+            print(f"{Fore.RED}[ERROR] USER token detected! This category requires BOT tokens ONLY.{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[INFO] Get BOT tokens from Discord Developer Portal{Style.RESET_ALL}")
+            return
+        else:
+            print(f"{Fore.RED}[ERROR] Invalid token! ({token_type}){Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Valid BOT token: {username}{Style.RESET_ALL}")
+    
     intents = discord.Intents.default()
     intents.members = True
     intents.messages = True
@@ -816,7 +869,7 @@ async def run_nuker(token: str, coro):
 
     @bot.event
     async def on_ready():
-        print(f"{Fore.GREEN}[ONLINE] Logged in as {bot.user} (ID: {bot.user.id}){Style.RESET_ALL}")
+        print(f"{Fore.GREEN}[ONLINE] Logged in as {bot.user} (BOT - ID: {bot.user.id}){Style.RESET_ALL}")
         print(f"{Fore.CYAN}[INFO] Connected to {len(bot.guilds)} guilds{Style.RESET_ALL}")
         
         for guild in bot.guilds:
@@ -1509,7 +1562,7 @@ async def kick_all(bot):
         print(f"{Fore.YELLOW}[INFO] No members to kick{Style.RESET_ALL}")
 
 # ────────────────────────────────────────────────────────────────────────────────
-#   SELFBOT CATEGORY - USES USER TOKENS (Fixed for user tokens)
+#   SELFBOT CATEGORY - USES USER TOKENS ONLY (STRICTLY USER TOKENS)
 # ────────────────────────────────────────────────────────────────────────────────
 
 SELFBOT_ASCII_LINES = [
@@ -1574,8 +1627,9 @@ def display_selfbot_ascii():
 def display_selfbot_menu():
     """Display Selfbot main menu"""
     display_selfbot_ascii()
-    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Selfbot Menu (USE USER TOKENS){Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This category requires USER tokens from browser Developer Tools{Style.RESET_ALL}")
+    print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Selfbot Menu (USER TOKENS ONLY){Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This category requires USER tokens ONLY from browser Developer Tools{Style.RESET_ALL}")
+    print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}BOT TOKENS WILL BE REJECTED HERE{Style.RESET_ALL}")
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
     
     options = [
@@ -1740,13 +1794,13 @@ def load_selfbot_config():
         return {}
 
 async def validate_user_token(token):
-    """Validate a USER token (not bot token) - FIXED VERSION"""
-    # First check if token looks like a bot token (starts with Bot)
-    if token.startswith('Bot ') or token.startswith('bot '):
-        return False, None, "bot_token"
-    
-    # Clean the token (remove quotes, spaces)
+    """Validate a USER token (not bot token) - REJECTS BOT TOKENS"""
+    # Clean token
     clean_token = token.strip().replace('"', '').replace("'", "")
+    
+    # Check if it looks like a bot token (starts with Bot)
+    if clean_token.startswith('Bot ') or clean_token.startswith('bot '):
+        return False, None, "bot_token_rejected"
     
     headers = {
         "Authorization": clean_token,
@@ -1759,6 +1813,9 @@ async def validate_user_token(token):
             async with session.get("https://discord.com/api/v10/users/@me", headers=headers) as resp:
                 if resp.status == 200:
                     user_data = await resp.json()
+                    # Check if it's NOT a bot account (should be False for user tokens)
+                    if user_data.get('bot', False):
+                        return False, None, "bot_token_rejected"
                     username = f"{user_data['username']}#{user_data.get('discriminator', '0')}"
                     return True, username, "user"
                 elif resp.status == 401:
@@ -1908,7 +1965,22 @@ class SelfBot(commands.Bot):
         await ctx.send("```Custom activity cleared.```")
 
 async def launch_selfbot(token, prefix, is_main=False):
-    """Launch a selfbot instance with USER token - FIXED VERSION"""
+    """Launch a selfbot instance with USER token ONLY - REJECTS BOT TOKENS"""
+    # Validate it's a user token first
+    print(f"{Fore.YELLOW}[INFO] Validating USER token...{Style.RESET_ALL}")
+    valid, username, token_type = await validate_user_token(token)
+    
+    if not valid:
+        if token_type == "bot_token_rejected":
+            print(f"{Fore.RED}[ERROR] BOT token detected! This category requires USER tokens ONLY.{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[INFO] Get USER tokens from browser Developer Tools{Style.RESET_ALL}")
+            return
+        else:
+            print(f"{Fore.RED}[ERROR] Invalid token! ({token_type}){Style.RESET_ALL}")
+            return
+    
+    print(f"{Fore.GREEN}[SUCCESS] Valid USER token: {username}{Style.RESET_ALL}")
+    
     intents = discord.Intents.all()
     
     # Clean the token (remove quotes, spaces, 'Bot ' prefix)
@@ -2058,7 +2130,7 @@ async def launch_selfbot(token, prefix, is_main=False):
     running_bots.append(bot)
     
     try:
-        # For user tokens, we need to bypass Discord.py's token validation
+        # Use bot=False for user tokens
         await bot.start(clean_token, bot=False)
     except discord.LoginFailure as e:
         print(f"{Fore.RED}[ERROR] Login failed for {clean_token[:10]}...: {e}{Style.RESET_ALL}")
@@ -2071,10 +2143,10 @@ async def launch_selfbot(token, prefix, is_main=False):
             running_bots.remove(bot)
 
 async def run_selfbot_setup():
-    """Run selfbot setup wizard"""
+    """Run selfbot setup wizard - USER TOKENS ONLY"""
     display_selfbot_ascii()
-    print_centered(f"{get_color('light')}[+] Selfbot Setup Wizard{Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This requires USER tokens, not bot tokens!{Style.RESET_ALL}")
+    print_centered(f"{get_color('light')}[+] Selfbot Setup Wizard (USER TOKENS ONLY){Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This requires USER tokens ONLY, BOT tokens will be rejected!{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Get user token from browser Developer Tools → Application → Local Storage{Style.RESET_ALL}")
     
     main_token = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Main USER token > ").strip()
@@ -2088,8 +2160,11 @@ async def run_selfbot_setup():
     valid, user, token_type = await validate_user_token(main_token)
     
     if not valid:
-        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid USER token! ({token_type}){Style.RESET_ALL}")
-        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure it's a USER token from browser, not a bot token{Style.RESET_ALL}")
+        if token_type == "bot_token_rejected":
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}BOT token detected! This category requires USER tokens only.{Style.RESET_ALL}")
+            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Use this token in the Nuking category instead{Style.RESET_ALL}")
+        else:
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid USER token! ({token_type}){Style.RESET_ALL}")
         return False
     
     print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}USER token OK → {user}{Style.RESET_ALL}")
@@ -2110,7 +2185,10 @@ async def run_selfbot_setup():
             alts.append(alt_token)
             print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Added → {user}{Style.RESET_ALL}")
         else:
-            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid USER token ({token_type}) - skipped{Style.RESET_ALL}")
+            if token_type == "bot_token_rejected":
+                print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}BOT token detected - rejected{Style.RESET_ALL}")
+            else:
+                print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid USER token ({token_type}) - skipped{Style.RESET_ALL}")
     
     # Get prefix
     prefix = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Command prefix [default .] > ").strip() or "."
@@ -2126,7 +2204,7 @@ async def run_selfbot_setup():
         return False
 
 async def start_selfbot():
-    """Start all selfbot instances with USER tokens"""
+    """Start all selfbot instances with USER tokens ONLY"""
     global selfbot_running
     
     if selfbot_running:
@@ -2143,7 +2221,7 @@ async def start_selfbot():
         return
     
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Launching main + {len(alts)} alt USER token(s)...{Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Using USER tokens (selfbot mode){Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Using USER tokens ONLY (selfbot mode){Style.RESET_ALL}")
     
     # Launch main bot with user token
     asyncio.create_task(launch_selfbot(main, prefix, True))
@@ -2155,7 +2233,7 @@ async def start_selfbot():
     selfbot_running = True
     print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}All USER bots launched!{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Prefix: {prefix} | Commands: spam, copycat, purge, etc.{Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Remember: These are USER accounts, not bot accounts!{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Remember: These are USER accounts ONLY, BOT tokens rejected!{Style.RESET_ALL}")
 
 def stop_selfbot():
     """Stop all selfbot instances"""
@@ -2185,7 +2263,7 @@ def show_selfbot_status():
     alt_count = len(data.get("alts", []))
     
     display_selfbot_ascii()
-    print_centered(f"\n{get_color('light')}[+] Selfbot Status{Style.RESET_ALL}")
+    print_centered(f"\n{get_color('light')}[+] Selfbot Status (USER TOKENS ONLY){Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}{'─' * 60}{Style.RESET_ALL}")
     
     status = "Running" if selfbot_running else "Stopped"
@@ -2194,13 +2272,13 @@ def show_selfbot_status():
     print_centered(f"{get_color('light')}[Main]{Style.RESET_ALL} {Fore.CYAN}{'Configured' if main_exists else 'Not configured'}{Style.RESET_ALL}")
     print_centered(f"{get_color('light')}[Alts]{Style.RESET_ALL} {Fore.CYAN}{alt_count} configured{Style.RESET_ALL}")
     print_centered(f"{get_color('light')}[Prefix]{Style.RESET_ALL} {Fore.CYAN}{data.get('prefix', '.')}{Style.RESET_ALL}")
-    print_centered(f"{get_color('light')}[Type]{Style.RESET_ALL} {Fore.CYAN}USER tokens (selfbot){Style.RESET_ALL}")
+    print_centered(f"{get_color('light')}[Type]{Style.RESET_ALL} {Fore.CYAN}USER tokens ONLY (BOT tokens rejected){Style.RESET_ALL}")
     
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}")
     input(f"\n{get_color('light')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
 
 async def handle_selfbot():
-    """Handle selfbot category"""
+    """Handle selfbot category - USER TOKENS ONLY"""
     while True:
         choice = display_selfbot_menu()
         
@@ -2281,9 +2359,9 @@ def main():
             input()
             
         elif choice == "3":
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}NUKING CATEGORY: Requires BOT tokens{Style.RESET_ALL}")
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}NUKING CATEGORY: BOT TOKENS ONLY{Style.RESET_ALL}")
             print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Get bot tokens from Discord Developer Portal{Style.RESET_ALL}")
-            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Different from USER tokens used in Selfbot category{Style.RESET_ALL}")
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}USER TOKENS WILL BE REJECTED IN THIS CATEGORY{Style.RESET_ALL}")
             
             input(f"\n{get_color('light')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             
@@ -2329,9 +2407,9 @@ def main():
                 input(f"\n{Fore.YELLOW}Press Enter...{Style.RESET_ALL}")
                 
         elif choice == "4":
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}SELFBOT CATEGORY: Requires USER tokens{Style.RESET_ALL}")
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}SELFBOT CATEGORY: USER TOKENS ONLY{Style.RESET_ALL}")
             print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Get user tokens from browser Developer Tools{Style.RESET_ALL}")
-            print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Different from BOT tokens used in Nuking category{Style.RESET_ALL}")
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}BOT TOKENS WILL BE REJECTED IN THIS CATEGORY{Style.RESET_ALL}")
             
             input(f"\n{get_color('light')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             asyncio.run(handle_selfbot())
