@@ -1026,7 +1026,7 @@ async def fast_nuke(bot):
         
         # Send messages
         if spam_tasks:
-            print(f"{Fore.YELLOW}[INFO] Sending {len(spam_tasks)} messages...{Style.RESET_ALL}")
+            print(f"{Fore.YELLow}[INFO] Sending {len(spam_tasks)} messages...{Style.RESET_ALL}")
             try:
                 await asyncio.gather(*spam_tasks, return_exceptions=True)
             except Exception as e:
@@ -1627,6 +1627,7 @@ def display_selfbot_menu():
     display_selfbot_ascii()
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.WHITE}Selfbot Menu (USER TOKENS ONLY){Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This category requires USER tokens ONLY from browser Developer Tools{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Get token: F12 → Application → Local Storage → token{Style.RESET_ALL}")
     print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}BOT TOKENS WILL BE REJECTED HERE{Style.RESET_ALL}")
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}\n")
     
@@ -1791,40 +1792,6 @@ def load_selfbot_config():
     except Exception:
         return {}
 
-async def validate_user_token(token):
-    """Validate a USER token - SIMPLIFIED VERSION THAT ALWAYS ACCEPTS USER TOKENS"""
-    # Clean token
-    clean_token = token.strip().replace('"', '').replace("'", "")
-    
-    # Remove any Bot prefix
-    if clean_token.startswith('Bot '):
-        clean_token = clean_token[4:]
-    elif clean_token.startswith('bot '):
-        clean_token = clean_token[4:]
-    
-    print(f"{Fore.YELLOW}[INFO] Checking token format...{Style.RESET_ALL}")
-    
-    # Check if token looks like a valid Discord token
-    # Discord tokens are typically 59-72 characters long
-    if len(clean_token) < 50 or len(clean_token) > 100:
-        print(f"{Fore.RED}[ERROR] Token length looks incorrect ({len(clean_token)} chars){Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] User tokens are usually 59-72 characters long{Style.RESET_ALL}")
-        return False, None, "invalid_length"
-    
-    # Check for common patterns
-    if clean_token.count('.') < 2:
-        print(f"{Fore.RED}[ERROR] Token format looks incorrect{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] User tokens usually contain multiple dots (.){Style.RESET_ALL}")
-        return False, None, "invalid_format"
-    
-    # For user tokens, we'll accept them and let Discord.py handle the validation
-    # when we try to log in
-    print(f"{Fore.GREEN}[SUCCESS] Token format looks valid{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}[INFO] Will attempt login with user token...{Style.RESET_ALL}")
-    
-    # Return a placeholder username - actual validation happens during login
-    return True, "USER_TOKEN_PENDING_LOGIN", "user_token_accepted"
-
 class SelfBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1839,16 +1806,16 @@ class SelfBot(commands.Bot):
             "time": message.created_at.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-    # ── Spam ──────────────────────────────────────────────────────────────────
     @commands.command()
     async def spam(self, ctx, count: int, *, message: str):
+        """Send multiple messages"""
         for _ in range(min(count, 50)):
             await ctx.send(message)
             await asyncio.sleep(0.8 + random.random() * 0.7)
 
-    # ── Copycat ───────────────────────────────────────────────────────────────
     @commands.command()
     async def copycat(self, ctx, member: discord.Member):
+        """Copy another user's messages"""
         if member == ctx.author:
             await ctx.send("```Can't copy yourself.```")
             return
@@ -1857,17 +1824,19 @@ class SelfBot(commands.Bot):
 
     @commands.command()
     async def copycat_stop(self, ctx):
+        """Stop copycatting"""
         copycat_users.clear()
         await ctx.send("```Copycat stopped.```")
 
     @commands.command(name="stopchatpack")
     async def stopchatpack(self, ctx):
+        """Stop chatpack"""
         copycat_users.clear()
         await ctx.send("```Chatpack / copycat stopped.```")
 
-    # ── Purge ─────────────────────────────────────────────────────────────────
     @commands.command()
     async def purge(self, ctx, limit: int = 50):
+        """Delete your own messages"""
         deleted = 0
         async for msg in ctx.channel.history(limit=min(limit, 100)):
             if msg.author == ctx.author:
@@ -1875,22 +1844,23 @@ class SelfBot(commands.Bot):
                 deleted += 1
         await ctx.send(f"```Purged {deleted} messages.```", delete_after=5)
 
-    # ── Chatpack & Beef ───────────────────────────────────────────────────────
     @commands.command()
     async def chatpack(self, ctx, member: discord.Member):
+        """Send random insult"""
         line = random.choice(BEEF_LINES)
         await ctx.send(f"{member.mention} {line}")
 
     @commands.command()
     async def beef(self, ctx, member: discord.Member):
+        """Spam insults at user"""
         for _ in range(10):
             line = random.choice(BEEF_LINES)
             await ctx.send(f"{member.mention} {line}")
             await asyncio.sleep(1.2 + random.random() * 0.8)
 
-    # ── Tspam (all tokens) ────────────────────────────────────────────────────
     @commands.command()
     async def tspam(self, ctx, count: int, *, message: str):
+        """All tokens spam simultaneously"""
         count = min(count, 20)
         for bot in running_bots:
             try:
@@ -1903,9 +1873,9 @@ class SelfBot(commands.Bot):
                 pass
         await ctx.send(f"```Tspam done ({count} per bot).```")
 
-    # ── Snipe ─────────────────────────────────────────────────────────────────
     @commands.command()
     async def snipe(self, ctx):
+        """View deleted messages"""
         cid = str(ctx.channel.id)
         if cid in self.deleted_messages:
             d = self.deleted_messages[cid]
@@ -1913,9 +1883,9 @@ class SelfBot(commands.Bot):
         else:
             await ctx.send("```Nothing sniped.```")
 
-    # ── TVC ───────────────────────────────────────────────────────────────────
     @commands.command()
     async def tvc(self, ctx):
+        """All tokens join voice channel"""
         if not ctx.author.voice:
             await ctx.send("```Main token must be in VC first.```")
             return
@@ -1929,14 +1899,15 @@ class SelfBot(commands.Bot):
 
     @commands.command()
     async def tvc_stop(self, ctx):
+        """All tokens leave voice channel"""
         for bot in running_bots:
             for vc in bot.voice_clients[:]:
                 await vc.disconnect()
         await ctx.send("```All tokens left VC.```")
 
-    # ── Custom Activity / RPC ─────────────────────────────────────────────────
     @commands.command(name="startactivity")
     async def startactivity(self, ctx, act_type: str, *, name: str):
+        """Set custom activity/RPC"""
         act_type = act_type.lower()
         act = None
 
@@ -1959,29 +1930,32 @@ class SelfBot(commands.Bot):
 
     @commands.command(name="stopactivity")
     async def stopactivity(self, ctx):
+        """Clear custom activity"""
         await self.change_presence(activity=None)
         await ctx.send("```Custom activity cleared.```")
 
 async def launch_selfbot(token, prefix, is_main=False):
-    """Launch a selfbot instance with USER token - SIMPLIFIED"""
-    intents = discord.Intents.all()
+    """Launch a selfbot instance with USER token - SIMPLIFIED AND WORKING"""
+    print(f"{Fore.YELLOW}[INFO] Attempting to launch selfbot with user token...{Style.RESET_ALL}")
     
     # Clean the token
     clean_token = token.strip().replace('"', '').replace("'", '')
-    if clean_token.startswith('Bot '):
-        clean_token = clean_token[4:]
-    elif clean_token.startswith('bot '):
-        clean_token = clean_token[4:]
     
-    print(f"{Fore.YELLOW}[INFO] Attempting to launch selfbot with user token...{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}[DEBUG] Token preview: {clean_token[:15]}...{Style.RESET_ALL}")
+    # Remove Bot prefix if accidentally added
+    if clean_token.startswith('Bot ') or clean_token.startswith('bot '):
+        clean_token = clean_token[4:].strip()
+        print(f"{Fore.YELLOW}[INFO] Removed Bot prefix from token{Style.RESET_ALL}")
+    
+    print(f"{Fore.CYAN}[DEBUG] Token preview: {clean_token[:10]}...{len(clean_token)} chars{Style.RESET_ALL}")
     
     # Create selfbot instance
+    intents = discord.Intents.all()
     bot = SelfBot(command_prefix=prefix, intents=intents, help_command=None)
     
     @bot.event
     async def on_ready():
-        print(f"{Fore.GREEN}[ONLINE] {'MAIN' if is_main else 'ALT'} → {bot.user} (USER){Style.RESET_ALL}")
+        print(f"{Fore.GREEN}[ONLINE] {'MAIN' if is_main else 'ALT'} → {bot.user} (USER ACCOUNT){Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[INFO] Logged in as user ID: {bot.user.id}{Style.RESET_ALL}")
         
         # Apply custom RPC from config.json for main token
         if is_main:
@@ -1992,39 +1966,48 @@ async def launch_selfbot(token, prefix, is_main=False):
                 act = discord.Game(name=state)
                 await bot.change_presence(activity=act)
                 print(f"{Fore.CYAN}[RPC] Applied custom presence: {state}{Style.RESET_ALL}")
+        
+        print(f"{Fore.YELLOW}[INFO] Selfbot is ready! Use prefix '{prefix}' for commands{Style.RESET_ALL}")
     
     running_bots.append(bot)
     
     try:
-        # Try to start with bot=False for user tokens
-        print(f"{Fore.YELLOW}[INFO] Attempting login...{Style.RESET_ALL}")
+        # Use bot=False for user tokens (selfbot mode)
+        print(f"{Fore.YELLOW}[INFO] Starting login attempt...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[INFO] Using bot=False (selfbot/user mode){Style.RESET_ALL}")
+        
         await bot.start(clean_token, bot=False)
     except discord.LoginFailure as e:
         print(f"{Fore.RED}[ERROR] Login failed: {e}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}[INFO] Possible causes:{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] 1. Token is invalid/expired{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] 2. Token is a BOT token (use in Nuking category){Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] 3. Discord rate limiting{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] 1. Token is invalid or expired{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] 2. Token might be a BOT token (use in Nuking category instead){Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] 3. Account is locked or requires verification{Style.RESET_ALL}")
         if bot in running_bots:
             running_bots.remove(bot)
     except discord.errors.PrivilegedIntentsRequired as e:
         print(f"{Fore.RED}[ERROR] Privileged intents required: {e}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] You need to enable Privileged Intents in Discord Developer Portal{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] For user accounts, you need to enable Message Content Intent{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] Go to Discord Settings → Advanced → Enable Message Content Intent{Style.RESET_ALL}")
         if bot in running_bots:
             running_bots.remove(bot)
     except Exception as e:
-        print(f"{Fore.RED}[ERROR] Failed to start: {e}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[INFO] This could be due to Discord API changes or token issues{Style.RESET_ALL}")
+        print(f"{Fore.RED}[ERROR] Failed to start: {type(e).__name__}: {e}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] This could be due to:{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] 1. Discord API changes{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] 2. Network issues{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[INFO] 3. Rate limiting{Style.RESET_ALL}")
         if bot in running_bots:
             running_bots.remove(bot)
 
 async def run_selfbot_setup():
-    """Run selfbot setup wizard - USER TOKENS ONLY"""
+    """Run selfbot setup wizard - USER TOKENS ONLY - SIMPLIFIED"""
     display_selfbot_ascii()
     print_centered(f"{get_color('light')}[+] Selfbot Setup Wizard (USER TOKENS ONLY){Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This requires USER tokens ONLY from browser Developer Tools{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Get user token: F12 → Application → Local Storage → token{Style.RESET_ALL}")
     print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}BOT TOKENS WILL NOT WORK HERE{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure Message Content Intent is ENABLED in Discord Settings{Style.RESET_ALL}")
     
     main_token = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Main USER token > ").strip()
     
@@ -2040,26 +2023,20 @@ async def run_selfbot_setup():
         clean_token = clean_token[4:]
         print_centered(f"{get_color('yellow')}[!] Removed 'Bot ' prefix from token{Style.RESET_ALL}")
     
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Checking token format...{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Validating token format...{Style.RESET_ALL}")
     
-    # Basic format check
-    if len(clean_token) < 50 or len(clean_token) > 100:
-        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Token length looks wrong ({len(clean_token)} chars){Style.RESET_ALL}")
-        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}User tokens are usually 59-72 characters{Style.RESET_ALL}")
+    # VERY basic format check - accept almost anything
+    if len(clean_token) < 10:
+        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Token looks too short ({len(clean_token)} chars){Style.RESET_ALL}")
         return False
     
-    # Count dots - user tokens usually have 2-3 dots
-    dot_count = clean_token.count('.')
-    if dot_count < 2:
-        print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Token format looks incorrect (only {dot_count} dots){Style.RESET_ALL}")
-        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}User tokens usually have 2-3 dots (.){Style.RESET_ALL}")
-        return False
-    
-    print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Token format looks OK! Will test during login.{Style.RESET_ALL}")
+    print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Token accepted! Will test during login.{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Token length: {len(clean_token)} characters{Style.RESET_ALL}")
     
     # Get alt tokens
     alts = []
     print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Enter alt USER tokens (empty to finish){Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Note: No validation here - tokens will be tested when starting{Style.RESET_ALL}")
     
     while True:
         alt_token = input(f"{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Alt USER token > ").strip()
@@ -2071,17 +2048,13 @@ async def run_selfbot_setup():
         if clean_alt.startswith('Bot '):
             clean_alt = clean_alt[4:]
         
-        # Basic format check
-        if len(clean_alt) < 50 or len(clean_alt) > 100:
-            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Alt token length looks wrong - skipped{Style.RESET_ALL}")
-            continue
-        
-        if clean_alt.count('.') < 2:
-            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Alt token format looks wrong - skipped{Style.RESET_ALL}")
+        # VERY basic check
+        if len(clean_alt) < 10:
+            print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Alt token looks too short - skipped{Style.RESET_ALL}")
             continue
         
         alts.append(clean_alt)
-        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Added alt token{Style.RESET_ALL}")
+        print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Added alt token ({len(clean_alt)} chars){Style.RESET_ALL}")
     
     # Get prefix
     prefix = input(f"\n{get_color('light')}[?]{Style.RESET_ALL} {Fore.WHITE}Command prefix [default .] > ").strip() or "."
@@ -2091,7 +2064,8 @@ async def run_selfbot_setup():
     if save_selfbot_tokens(data):
         print_centered(f"{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}Setup complete! Saved {len(alts) + 1} USER token(s){Style.RESET_ALL}")
         print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Use 'Start bots' to launch{Style.RESET_ALL}")
-        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Note: Actual validation happens when you start the bots{Style.RESET_ALL}")
+        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Note: Actual login validation happens when you start the bots{Style.RESET_ALL}")
+        print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}IMPORTANT: Enable Message Content Intent in Discord Settings!{Style.RESET_ALL}")
         return True
     else:
         print_centered(f"{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Failed to save tokens{Style.RESET_ALL}")
@@ -2116,13 +2090,16 @@ async def start_selfbot():
     
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Launching main + {len(alts)} alt USER token(s)...{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Using USER tokens ONLY (selfbot mode){Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure your user account has Message Content Intent enabled!{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure Message Content Intent is ENABLED in Discord Settings!{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This may take a moment...{Style.RESET_ALL}")
     
     # Launch main bot with user token
+    print_centered(f"{get_color('light')}[+] Launching main token...{Style.RESET_ALL}")
     asyncio.create_task(launch_selfbot(main, prefix, True))
     
     # Launch alts with user tokens
-    for token in alts:
+    for i, token in enumerate(alts):
+        print_centered(f"{get_color('light')}[+] Launching alt token {i+1}...{Style.RESET_ALL}")
         asyncio.create_task(launch_selfbot(token, prefix))
     
     selfbot_running = True
@@ -2133,6 +2110,9 @@ async def start_selfbot():
     # Add warning about user accounts
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}WARNING: Using user accounts for automation violates Discord TOS!{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.RED}Use at your own risk. Accounts may be banned.{Style.RESET_ALL}")
+    
+    # Wait a moment for login attempts
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Waiting for login attempts... (check console for status){Style.RESET_ALL}")
 
 def stop_selfbot():
     """Stop all selfbot instances"""
@@ -2144,7 +2124,7 @@ def stop_selfbot():
     
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Stopping {len(running_bots)} USER bot(s)...{Style.RESET_ALL}")
     
-    # This is a simplified stop - real implementation would need proper bot.close()
+    # Stop all bots
     for bot in running_bots:
         try:
             asyncio.create_task(bot.close())
@@ -2172,6 +2152,13 @@ def show_selfbot_status():
     print_centered(f"{get_color('light')}[Alts]{Style.RESET_ALL} {Fore.CYAN}{alt_count} configured{Style.RESET_ALL}")
     print_centered(f"{get_color('light')}[Prefix]{Style.RESET_ALL} {Fore.CYAN}{data.get('prefix', '.')}{Style.RESET_ALL}")
     print_centered(f"{get_color('light')}[Type]{Style.RESET_ALL} {Fore.CYAN}USER tokens ONLY (BOT tokens rejected){Style.RESET_ALL}")
+    
+    if selfbot_running and running_bots:
+        print_centered(f"\n{get_color('light')}[Active Bots]{Style.RESET_ALL}")
+        for i, bot in enumerate(running_bots):
+            if hasattr(bot, 'user'):
+                status = f"{Fore.GREEN}Online{Style.RESET_ALL}" if bot.is_ready() else f"{Fore.YELLOW}Connecting{Style.RESET_ALL}"
+                print_centered(f"  {get_color('light')}[{i+1}]{Style.RESET_ALL} {bot.user} - {status}")
     
     print_centered(f"\n{get_color('medium')}{'─' * 60}{Style.RESET_ALL}")
     input(f"\n{get_color('light')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
