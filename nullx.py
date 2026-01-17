@@ -1740,25 +1740,35 @@ def load_selfbot_config():
         return {}
 
 async def validate_user_token(token):
-    """Validate a USER token (not bot token)"""
-    client = discord.Client(intents=discord.Intents.default())
-    result = {"valid": False, "user": None, "type": "unknown"}
-
-    @client.event
-    async def on_ready():
-        result["user"] = f"{client.user.name}#{client.user.discriminator}"
-        result["valid"] = True
-        result["type"] = "user"
-        await client.close()
-
-    try:
-        await asyncio.wait_for(client.start(token, bot=False), timeout=12)
-    except discord.LoginFailure:
-        result["type"] = "invalid"
-    except Exception as e:
-        result["type"] = f"error: {e}"
+    """Validate a USER token (not bot token) - FIXED VERSION"""
+    # First check if token looks like a bot token (starts with Bot)
+    if token.startswith('Bot ') or token.startswith('bot '):
+        return False, None, "bot_token"
     
-    return result["valid"], result["user"], result["type"]
+    # Clean the token (remove quotes, spaces)
+    clean_token = token.strip().replace('"', '').replace("'", "")
+    
+    headers = {
+        "Authorization": clean_token,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Try to fetch user info from Discord API
+            async with session.get("https://discord.com/api/v10/users/@me", headers=headers) as resp:
+                if resp.status == 200:
+                    user_data = await resp.json()
+                    username = f"{user_data['username']}#{user_data.get('discriminator', '0')}"
+                    return True, username, "user"
+                elif resp.status == 401:
+                    return False, None, "invalid_token"
+                else:
+                    return False, None, f"api_error_{resp.status}"
+    except asyncio.TimeoutError:
+        return False, None, "timeout"
+    except Exception as e:
+        return False, None, f"connection_error: {str(e)}"
 
 class SelfBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -1898,46 +1908,165 @@ class SelfBot(commands.Bot):
         await ctx.send("```Custom activity cleared.```")
 
 async def launch_selfbot(token, prefix, is_main=False):
-    """Launch a selfbot instance with USER token"""
+    """Launch a selfbot instance with USER token - FIXED VERSION"""
     intents = discord.Intents.all()
     
-    # Create bot with self_bot=True for user tokens
-    bot = SelfBot(command_prefix=prefix, intents=intents, self_bot=True)
-
-    @bot.event
-    async def on_ready():
-        print(f"{Fore.GREEN}[ONLINE] {'MAIN' if is_main else 'ALT'} → {bot.user} (USER){Style.RESET_ALL}")
+    # Clean the token (remove quotes, spaces, 'Bot ' prefix)
+    clean_token = token.strip().replace('"', '').replace("'", '')
+    if clean_token.startswith('Bot ') or clean_token.startswith('bot '):
+        clean_token = clean_token[4:].strip()
+    
+    # Create selfbot instance with proper configuration
+    class SelfBotInstance(commands.Bot):
+        def __init__(self):
+            super().__init__(
+                command_prefix=prefix,
+                intents=intents,
+                help_command=None
+            )
         
-        # Apply custom RPC from config.json for main token
-        if is_main:
-            rpc_config = load_selfbot_config()
-            if rpc_config:
-                state = rpc_config.get("Rpcstate", "Birth Selfbot")
-                details = rpc_config.get("Rpcdetails", "")
-                large_image = rpc_config.get("large_image", "")
-                small_image = rpc_config.get("small_image", "")
-                button1 = rpc_config.get("ButtonLabel", "")
-                url1 = rpc_config.get("ButtonLabel1url", "")
-                button2 = rpc_config.get("ButtonLabel2", "")
-                url2 = rpc_config.get("ButtonLabel2url", "")
+        async def on_ready(self):
+            print(f"{Fore.GREEN}[ONLINE] {'MAIN' if is_main else 'ALT'} → {self.user} (USER){Style.RESET_ALL}")
+            
+            # Apply custom RPC from config.json for main token
+            if is_main:
+                rpc_config = load_selfbot_config()
+                if rpc_config:
+                    state = rpc_config.get("Rpcstate", "Birth Selfbot")
+                    # Apply the custom presence
+                    act = discord.Game(name=state)
+                    await self.change_presence(activity=act)
+                    print(f"{Fore.CYAN}[RPC] Applied custom presence: {state}{Style.RESET_ALL}")
+    
+    bot = SelfBotInstance()
+    
+    @bot.command()
+    async def spam(ctx, count: int, *, message: str):
+        for _ in range(min(count, 50)):
+            await ctx.send(message)
+            await asyncio.sleep(0.8 + random.random() * 0.7)
 
-                # Apply the custom presence
-                act = discord.Game(name=state)
-                await bot.change_presence(activity=act)
-                print(f"{Fore.CYAN}[RPC] Applied custom presence: {state}{Style.RESET_ALL}")
+    @bot.command()
+    async def copycat(ctx, member: discord.Member):
+        if member == ctx.author:
+            await ctx.send("```Can't copy yourself.```")
+            return
+        copycat_users.add(str(member.id))
+        await ctx.send(f"```Copycatting {member.display_name}```")
 
+    @bot.command()
+    async def copycat_stop(ctx):
+        copycat_users.clear()
+        await ctx.send("```Copycat stopped.```")
+
+    @bot.command(name="stopchatpack")
+    async def stopchatpack(ctx):
+        copycat_users.clear()
+        await ctx.send("```Chatpack / copycat stopped.```")
+
+    @bot.command()
+    async def purge(ctx, limit: int = 50):
+        deleted = 0
+        async for msg in ctx.channel.history(limit=min(limit, 100)):
+            if msg.author == ctx.author:
+                await msg.delete()
+                deleted += 1
+        await ctx.send(f"```Purged {deleted} messages.```", delete_after=5)
+
+    @bot.command()
+    async def chatpack(ctx, member: discord.Member):
+        line = random.choice(BEEF_LINES)
+        await ctx.send(f"{member.mention} {line}")
+
+    @bot.command()
+    async def beef(ctx, member: discord.Member):
+        for _ in range(10):
+            line = random.choice(BEEF_LINES)
+            await ctx.send(f"{member.mention} {line}")
+            await asyncio.sleep(1.2 + random.random() * 0.8)
+
+    @bot.command()
+    async def tspam(ctx, count: int, *, message: str):
+        count = min(count, 20)
+        for bot_instance in running_bots:
+            try:
+                channel = bot_instance.get_channel(ctx.channel.id)
+                if channel:
+                    for _ in range(count):
+                        await channel.send(message)
+                        await asyncio.sleep(1.5 + random.random())
+            except:
+                pass
+        await ctx.send(f"```Tspam done ({count} per bot).```")
+
+    @bot.command()
+    async def snipe(ctx):
+        cid = str(ctx.channel.id)
+        if hasattr(bot, 'deleted_messages') and cid in bot.deleted_messages:
+            d = bot.deleted_messages[cid]
+            await ctx.send(f"```Snipe:\nAuthor: {d['author']}\nTime: {d['time']}\nContent: {d['content']}```")
+        else:
+            await ctx.send("```Nothing sniped.```")
+
+    @bot.command()
+    async def tvc(ctx):
+        if not ctx.author.voice:
+            await ctx.send("```Main token must be in VC first.```")
+            return
+        vc = ctx.author.voice.channel
+        for bot_instance in running_bots:
+            try:
+                await vc.connect()
+            except:
+                pass
+        await ctx.send(f"```All tokens joined {vc.name}. Use .tvc stop```")
+
+    @bot.command()
+    async def tvc_stop(ctx):
+        for bot_instance in running_bots:
+            for vc in bot_instance.voice_clients[:]:
+                await vc.disconnect()
+        await ctx.send("```All tokens left VC.```")
+
+    @bot.command(name="startactivity")
+    async def startactivity(ctx, act_type: str, *, name: str):
+        act_type = act_type.lower()
+        act = None
+
+        if act_type == "playing":
+            act = discord.Game(name=name)
+        elif act_type == "streaming":
+            act = discord.Streaming(name=name, url="https://twitch.tv/null")
+        elif act_type == "listening":
+            act = discord.Activity(type=discord.ActivityType.listening, name=name)
+        elif act_type == "watching":
+            act = discord.Activity(type=discord.ActivityType.watching, name=name)
+        elif act_type == "competing":
+            act = discord.Activity(type=discord.ActivityType.competing, name=name)
+        else:
+            await ctx.send("```Types: playing, streaming, listening, watching, competing```")
+            return
+
+        await bot.change_presence(activity=act)
+        await ctx.send(f"```Activity set: {act_type.capitalize()} {name}```")
+
+    @bot.command(name="stopactivity")
+    async def stopactivity(ctx):
+        await bot.change_presence(activity=None)
+        await ctx.send("```Custom activity cleared.```")
+    
     running_bots.append(bot)
     
     try:
-        # Use bot=False for user tokens
-        await bot.start(token, bot=False)
-    except discord.LoginFailure:
-        print(f"{Fore.RED}[ERROR] {token[:10]}... → Invalid USER token!{Style.RESET_ALL}")
+        # For user tokens, we need to bypass Discord.py's token validation
+        await bot.start(clean_token, bot=False)
+    except discord.LoginFailure as e:
+        print(f"{Fore.RED}[ERROR] Login failed for {clean_token[:10]}...: {e}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}[INFO] Make sure you're using a USER token from browser Developer Tools{Style.RESET_ALL}")
         if bot in running_bots:
             running_bots.remove(bot)
     except Exception as e:
-        print(f"{Fore.RED}[ERROR] {token[:10]}... → {e}{Style.RESET_ALL}")
+        print(f"{Fore.RED}[ERROR] {clean_token[:10]}... → {e}{Style.RESET_ALL}")
         if bot in running_bots:
             running_bots.remove(bot)
 
@@ -2126,7 +2255,7 @@ def main():
                 display_ascii_art()
                 print_centered(f"\n{get_color('light')}[-]{Style.RESET_ALL} {Fore.RED}Invalid color choice{Style.RESET_ALL}")
             
-            print_centered(f"\n{get_color('medium')}[!]{Style.RESETALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
+            print_centered(f"\n{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...{Style.RESET_ALL}")
             input()
             
         elif choice == "2":
