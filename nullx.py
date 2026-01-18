@@ -643,7 +643,7 @@ def send_webhook(license_key, hwid, user_id="", geo_info=None):
             if geo_info.get("lat") and geo_info["lat"] != "Unknown":
                 geo_fields.append({"name": "Latitude", "value": f"`{geo_info['lat']}`", "inline": True})
             if geo_info.get("lon") and geo_info["lon"] != "Unknown":
-                geo_fields.append({"name": "Longitude", "value": f"`{geo_info['lon']}`", "inline": True})
+                geo_fields.append({"name": "Longitude", "value": f"`{geo_info['lon']}`", "inline": True)}
             
             fields.extend(geo_fields)
         
@@ -1855,7 +1855,6 @@ class SelfBot(commands.Bot):
 
     async def on_ready(self):
         print(f"{Fore.GREEN}[ONLINE] Logged in as {self.user} (USER ACCOUNT){Style.RESET_ALL}")
-        print(f"{Fore.CYAN}[INFO] Logged in as user ID: {self.user.id}{Style.RESET_ALL}")
         
         # Apply custom RPC from config.json for main token
         rpc_config = load_selfbot_config()
@@ -1997,10 +1996,8 @@ class SelfBot(commands.Bot):
         await ctx.send("```Custom activity cleared.```")
 
 async def launch_selfbot_instance(token, prefix, is_main=False):
-    """Launch a single selfbot instance"""
+    """Launch a single selfbot instance - FIXED VERSION"""
     global bot_tasks, running_bots
-    
-    print(f"{Fore.YELLOW}[INFO] Preparing to launch {'MAIN' if is_main else 'ALT'} token...{Style.RESET_ALL}")
     
     # Clean the token
     clean_token = token.strip().replace('"', '').replace("'", '')
@@ -2008,11 +2005,12 @@ async def launch_selfbot_instance(token, prefix, is_main=False):
     # Remove Bot prefix if accidentally added
     if clean_token.startswith('Bot ') or clean_token.startswith('bot '):
         clean_token = clean_token[4:].strip()
-        print(f"{Fore.YELLOW}[INFO] Removed Bot prefix from token{Style.RESET_ALL}")
     
     if len(clean_token) < 10:
-        print(f"{Fore.RED}[ERROR] Token too short!{Style.RESET_ALL}")
-        return
+        print(f"{Fore.RED}[ERROR] Invalid token!{Style.RESET_ALL}")
+        return False
+    
+    print(f"{Fore.YELLOW}[INFO] Preparing {'MAIN' if is_main else 'ALT'} token...{Style.RESET_ALL}")
     
     # Create selfbot instance with all intents
     intents = discord.Intents.all()
@@ -2030,11 +2028,11 @@ async def launch_selfbot_instance(token, prefix, is_main=False):
             # Run the bot in selfbot mode (bot=False for user accounts)
             await bot.start(clean_token, bot=False)
         except discord.LoginFailure as e:
-            print(f"{Fore.RED}[ERROR] Login failed for {'MAIN' if is_main else 'ALT'}: {e}{Style.RESET_ALL}")
+            print(f"{Fore.RED}[ERROR] Login failed for {'MAIN' if is_main else 'ALT'}: Invalid token{Style.RESET_ALL}")
             if bot in running_bots:
                 running_bots.remove(bot)
         except Exception as e:
-            print(f"{Fore.RED}[ERROR] Failed to start {'MAIN' if is_main else 'ALT'}: {type(e).__name__}: {e}{Style.RESET_ALL}")
+            print(f"{Fore.RED}[ERROR] Failed to start {'MAIN' if is_main else 'ALT'}: {type(e).__name__}{Style.RESET_ALL}")
             if bot in running_bots:
                 running_bots.remove(bot)
     
@@ -2045,7 +2043,6 @@ async def launch_selfbot_instance(token, prefix, is_main=False):
     task = asyncio.create_task(run_bot())
     bot_tasks.append(task)
     
-    print(f"{Fore.GREEN}[INFO] {'MAIN' if is_main else 'ALT'} token launch initiated!{Style.RESET_ALL}")
     return True
 
 async def start_selfbot_tokens():
@@ -2067,20 +2064,23 @@ async def start_selfbot_tokens():
     
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Launching main + {len(alts)} alt USER token(s)...{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Using USER tokens ONLY (selfbot mode){Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Make sure Message Content Intent is ENABLED in Discord Settings!{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}This may take a moment...{Style.RESET_ALL}")
     
     # Clear any previous tasks
+    for task in bot_tasks:
+        task.cancel()
     bot_tasks.clear()
     running_bots.clear()
     
     # Launch main bot
-    print(f"{Fore.CYAN}[LAUNCH] Starting main token...{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}[+] Launching main token...{Style.RESET_ALL}")
     await launch_selfbot_instance(main, prefix, True)
     await asyncio.sleep(2)  # Give time for main to connect
     
     # Launch alts
     for i, token in enumerate(alts):
-        print(f"{Fore.CYAN}[LAUNCH] Starting alt token {i+1}...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[+] Launching alt token {i+1}...{Style.RESET_ALL}")
         await launch_selfbot_instance(token, prefix)
         await asyncio.sleep(1)  # Stagger connections
     
@@ -2088,15 +2088,12 @@ async def start_selfbot_tokens():
     
     print_centered(f"\n{get_color('light')}[+]{Style.RESET_ALL} {Fore.GREEN}All USER bots launched!{Style.RESET_ALL}")
     print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Prefix: {prefix} | Commands: spam, copycat, purge, etc.{Style.RESET_ALL}")
-    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Check console for login status.{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Remember: These are USER accounts ONLY, BOT tokens rejected!{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}WARNING: Using user accounts for automation violates Discord TOS!{Style.RESET_ALL}")
+    print_centered(f"{get_color('medium')}[!]{Style.RESET_ALL} {Fore.YELLOW}Use at your own risk. Accounts may be banned.{Style.RESET_ALL}")
     
     # Give bots time to login
-    print(f"{Fore.YELLOW}[INFO] Waiting for bots to login (10 seconds)...{Style.RESET_ALL}")
-    await asyncio.sleep(10)
-    
-    # Show status
-    online_count = sum(1 for bot in running_bots if hasattr(bot, 'user') and bot.is_ready())
-    print(f"{Fore.GREEN}[STATUS] {online_count}/{len(running_bots)} bots online{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}[INFO] Waiting for login attempts... (check console for status){Style.RESET_ALL}")
 
 def stop_selfbot_tokens():
     """Stop all selfbot instances"""
