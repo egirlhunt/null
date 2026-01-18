@@ -1,3 +1,7 @@
+# ────────────────────────────────────────────────────────────────────────────────
+#   SELFBOT CATEGORY - USES USER TOKENS ONLY (STRICTLY USER TOKENS)
+# ────────────────────────────────────────────────────────────────────────────────
+
 import sys
 import time
 import os
@@ -7,12 +11,9 @@ import asyncio
 import discord
 from discord.ext import commands
 from colorama import init, Fore, Style
+import threading
 
 init(autoreset=True)
-
-# ────────────────────────────────────────────────────────────────────────────────
-#   SELFBOT CATEGORY - USES USER TOKENS ONLY (STRICTLY USER TOKENS)
-# ────────────────────────────────────────────────────────────────────────────────
 
 # Global variables for selfbot
 selfbot_running = False
@@ -465,7 +466,7 @@ async def launch_selfbot_instance(token, prefix, is_main=False):
     return True
 
 async def start_selfbot_tokens():
-    """Start all selfbot instances - FIXED VERSION"""
+    """Start all selfbot instances"""
     global selfbot_running, bot_tasks, running_bots
     
     if selfbot_running:
@@ -623,23 +624,52 @@ def show_selfbot_status():
     print_centered(f"\n{Fore.YELLOW}─" * 60)
     input(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...")
 
-async def handle_selfbot():
-    """Handle selfbot category"""
+def start_bots_thread():
+    """Start bots in a separate thread to avoid event loop conflict"""
+    def run_async():
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(start_selfbot_tokens())
+        except Exception as e:
+            print(f"{Fore.RED}[ERROR] Failed to start selfbot: {e}{Style.RESET_ALL}")
+    
+    # Start in a thread
+    bot_thread = threading.Thread(target=run_async, daemon=True)
+    bot_thread.start()
+    return bot_thread
+
+def handle_selfbot():
+    """Handle selfbot category - FIXED VERSION"""
     while True:
         choice = display_selfbot_menu()
         
         if choice == "1":
-            await run_selfbot_setup()
+            # Run setup in current thread
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(run_selfbot_setup())
+            except Exception as e:
+                print(f"{Fore.RED}[ERROR] Setup failed: {e}{Style.RESET_ALL}")
             input(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...")
             
         elif choice == "2":
             try:
-                # Create a new event loop for running async tasks
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(start_selfbot_tokens())
+                print(f"{Fore.YELLOW}[INFO] Starting bots...{Style.RESET_ALL}")
+                # Start bots in background thread
+                bot_thread = start_bots_thread()
+                
+                # Give thread time to start
+                time.sleep(2)
+                
+                print(f"{Fore.GREEN}[INFO] Bots started in background!{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}[INFO] Check console for login status{Style.RESET_ALL}")
+                
             except Exception as e:
                 print(f"{Fore.RED}[ERROR] Failed to start selfbot: {e}{Style.RESET_ALL}")
+            
             input(f"\n{Fore.YELLOW}[!]{Style.RESET_ALL} {Fore.YELLOW}Press Enter to continue...")
             
         elif choice == "3":
@@ -670,9 +700,7 @@ def main():
     
     try:
         # Run the selfbot handler
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(handle_selfbot())
+        handle_selfbot()
     except KeyboardInterrupt:
         print(f"\n{Fore.YELLOW}[!] Exiting...{Style.RESET_ALL}")
         stop_selfbot_tokens()
